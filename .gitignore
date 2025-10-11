@@ -1,0 +1,57 @@
+# Файлы сборки и выполнения
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.xml
+
+# Файлы пакетов NuGet
+packages/
+*.nupkg
+
+# Файлы проектов и решений
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Файлы резервных копий
+*.bak
+*.tmp
+
+# Файлы IDE
+.vs/
+.vscode/
+.fsharp/
+.fsx
+*.swp
+*~
+
+# Файлы профилирования
+*.fsprof
+
+# Выходные данные тестов
+TestResults.xml
+*.trx
+
+# Файлы покрытия кода
+coverage.xml
+*.coverage
+*.cover
+
+# Файлы документации
+docs/output/
+
+# Файлы зависимостей
+.paket/
+paket-files/
+
+# Файлы окружения
+.env
+.env.local
+.env.*.local
+
+# Файлы операционной системы
+Thumbs.db
+.DS_Store
