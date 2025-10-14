@@ -18,3 +18,31 @@ let getToken =
     | "prod" -> getEnvVariable "TOKEN"
     | "dev" -> getEnvVariable "TOKEN_DEV"
     | _ -> Error "Mode is not defined. Cant get Token"
+
+type ResultBilder() =
+  member b.Zero() = Error "Nothing has returned"
+  member b.Bind(x, f) =
+    match x with Ok x -> f x
+               | Error e  -> Error e
+  member b.Return x = Ok x
+  member b.Using((disposable: #System.IDisposable), f) =
+        try
+            f disposable
+        finally
+            disposable.Dispose()
+
+let result = ResultBilder()
+
+type Helper() =
+    static member isZero(value: string) = value = ""
+    static member isZero(value: int) = value = 0
+    static member isZero(value: float32) = value = 0f
+    
+    static member nonEmptyWith(value: string, add: string) =
+        if Helper.isZero(value) then value else value + add
+    
+    static member nonEmptyWith(value: int, add: int) =
+        if Helper.isZero(value) then value else value + add
+    
+    static member nonEmptyWith(value: float32, add: float32) =
+        if Helper.isZero(value) then value else value + add
