@@ -2,11 +2,11 @@ module Handlers
 
 open System
 open System.IO
-open System.Runtime
 open Funogram.Api
 open Funogram.Telegram.Bot
 open Funogram.Types
-open Image
+open Skin
+open Avrelii
 
 // alias
 type TelegramUpdate = Funogram.Telegram.Types.Update
@@ -44,19 +44,11 @@ let dispose (f: Funogram.Telegram.Types.InputFile ) =
         f.Dispose()
     | _ -> ()
 
-let x0 = 859f
-let y0 = 360f 
-
 let sendMessage context chatId text =
     let imagePath = getImagePath()
     match 
         text
-        |> generateImage 
-            imageBackground
-            fontPath 
-            imagePath
-            x0 y0 
-            TextPosition.Centred
+        |> generateQuote imagePath avrelii
     with
     | Error e -> printfn $"{e}"
     | Ok _ ->

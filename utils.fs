@@ -46,3 +46,5 @@ type Helper() =
     
     static member nonEmptyWith(value: float32, add: float32) =
         if Helper.isZero(value) then value else value + add
+
+type pair<'T> = 'T * 'T

@@ -8,6 +8,30 @@ open SixLabors.ImageSharp.Drawing.Processing
 open SixLabors.ImageSharp.Processing
 open Utils
 
+type OriginPosition = 
+    | Centred
+    | Raw
+
+type Origin = {
+    origin: PointF
+    position: OriginPosition
+}
+
+type Text = {
+    value: string
+    fontFamily: FontFamily
+    style: FontStyle
+} 
+
+type Ctx = IImageProcessingContext
+type AbstactDrawJob = Ctx -> unit
+type DrawJob = Origin -> AbstactDrawJob
+
+type Draw = {
+    size: float32 * float32
+    draw: DrawJob
+}
+
 let measureText (font: Font) (text: string) =
         let options = TextOptions(font)
         TextMeasurer.MeasureAdvance(text, options)
@@ -101,67 +125,70 @@ let getFontFamily (fontPath: string) =
     with
         e -> Error e.Message 
 
-let MAX_WIDTH = 680f
-let MAX_HEIGHT = 480f
-let MIN_FONT_SIZE = 2f
-let MAX_FONT_SIZE = 32f
-let AUTHOR_OFFSET_X = 84f
-let AUTHOR_OFFSET_Y = 20f
-let AUTHOR_NAME = "Марк Аврелий"
-
-type TextPosition = 
-    | Centred
-
-let getRenderPositions 
-    (mode: TextPosition) 
-    x y 
-    (rect: FontRectangle) 
+let pointOf 
+   (origin: Origin)
+   (rect: float32*float32)
     =
-    match mode with
+    let x, y = origin.origin.X, origin.origin.Y
+    let width, height = rect
+    match origin.position with
     | Centred ->
-        let x0 = x - (rect.Width / 2f)
-        let y0 = y - (rect.Height / 2f)
+        let x0 = x - (width / 2f)
+        let y0 = y - (height / 2f)
         x0, y0
-let generateImage 
-    imagePath
-    fontPath
-    outputPath
-    xC
-    yC
-    (mode: TextPosition)
-    text
-    = result {
-        use! image = getImage imagePath 
-        let! fontFamily = getFontFamily fontPath
-        let fontStyle = FontStyle()
-        let fontSize = 
-            findOptimalFontSize 
-                fontFamily 
-                fontStyle 
-                text 
-                MAX_WIDTH 
-                MAX_HEIGHT 
-                MIN_FONT_SIZE 
-                MAX_FONT_SIZE
-        let font = Font(fontFamily, fontSize, fontStyle)
-        let wrappedText = wrapText font MAX_WIDTH text
-        let rect = measureText font wrappedText
-        let (x0, y0) = getRenderPositions mode xC yC rect
-        let drawQuoteText  (ctx: IImageProcessingContext) =
-            let options = RichTextOptions(font)
-            options.Origin <- PointF(x0, y0)
-            ctx.DrawText(options, wrappedText, Color.Black)
-            |> ignore
-        let drawAuthorText (ctx: IImageProcessingContext) =
-            let authorFont = Font(fontFamily, 32f, fontStyle)
-            let options = RichTextOptions(font)
-            let width, heigh = rect.Width, rect.Height
-            let x0, y0 = xC + AUTHOR_OFFSET_X, yC + heigh / 2f + AUTHOR_OFFSET_Y
-            options.Origin <- PointF(x0, y0)
-            ctx.DrawText(options, AUTHOR_NAME, Color.Black)
-            |> ignore
-        image.Mutate(drawQuoteText)
-        image.Mutate(drawAuthorText)
-        image.Save(outputPath)
-        return 0
+    | Raw -> x, y
+
+
+let measureTextSize font text = 
+    let size = measureText font text
+    size.Width, size.Height
+
+let drawText
+    (size: float32)
+    (text: Text) = 
+    let font = Font(text.fontFamily, size, text.style)
+    let size = measureTextSize font text.value
+    let options = RichTextOptions(font)
+    let draw 
+        (origin: Origin)
+        (ctx: IImageProcessingContext) =
+        let x, y = pointOf origin size
+        options.Origin <- PointF(x, y)
+        ctx.DrawText(options, text.value, Color.Black) |> ignore
+    {
+        size = size
+        draw = draw
     }
+
+let drawTextInRect 
+    (rect: float32 pair)
+    (sizeRange: float32 pair)
+    (text: Text) =
+    let w, h = rect
+    let min, max = sizeRange
+    let fontSize = 
+            findOptimalFontSize 
+                text.fontFamily 
+                text.style 
+                text.value 
+                w h min max
+    let font = Font(text.fontFamily, fontSize, text.style)
+    let wrappedText = wrapText font w text.value
+    let size = measureTextSize font wrappedText
+    let draw origin (ctx: Ctx) = 
+        let x, y = pointOf origin size
+        let options = RichTextOptions(font)
+        options.Origin <- PointF(x, y)
+        ctx.DrawText(options, wrappedText, Color.Black) |> ignore
+    {
+        size = size
+        draw = draw
+    }
+
+
+let generateImage 
+    (image: Image)
+    (outputPath: string) 
+    (jobs: AbstactDrawJob array) =
+    Array.ForEach(jobs, (fun job -> image.Mutate job))
+    image.Save outputPath

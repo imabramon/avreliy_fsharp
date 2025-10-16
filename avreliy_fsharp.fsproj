@@ -5,7 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup><Compile Include="utils.fs" /><Compile Include="image.fs" /><Compile Include="handlers.fs" /><Compile Include="domain.fs" />
+  <ItemGroup><Compile Include="utils.fs" /><Compile Include="image.fs" /><Compile Include="skin.fs" /><Compile Include="avrelii.fs" /><Compile Include="handlers.fs" /><Compile Include="domain.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
