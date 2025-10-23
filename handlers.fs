@@ -26,10 +26,7 @@ let currentDir = __SOURCE_DIRECTORY__
 
 let getImagePath () = 
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
-    Path.Combine(currentDir, "./temp/" + tempFile)
-
-let fontPath = Path.Combine(currentDir, "./assets/MontserratAlternates-ExtraBold.ttf")
-let imageBackground = Path.Combine(currentDir,"./assets/avrelii.png")
+    Path.Combine(Environment.CurrentDirectory, "./temp/" + tempFile)
 
 let getInputFile path =
     let fileStream = new FileStream(path, FileMode.Open, FileAccess.Read)

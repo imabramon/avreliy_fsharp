@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>QuoteBot</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup><Compile Include="utils.fs" /><Compile Include="image.fs" /><Compile Include="skin.fs" /><Compile Include="avrelii.fs" /><Compile Include="handlers.fs" /><Compile Include="domain.fs" />
@@ -16,6 +17,10 @@
     <PackageReference Include="SixLabors.Fonts" Version="2.1.3" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="assets\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

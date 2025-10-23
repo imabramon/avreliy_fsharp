@@ -1,5 +1,6 @@
 module Avrelii
 
+open System
 open System.IO
 open SixLabors.Fonts
 open SixLabors.ImageSharp
@@ -7,7 +8,7 @@ open Image
 open Skin
 open Utils
 
-let currentDir = __SOURCE_DIRECTORY__
+let currentDir = Environment.CurrentDirectory
 let MAX_WIDTH = 680f
 let MAX_HEIGHT = 480f
 let MIN_FONT_SIZE = 2f

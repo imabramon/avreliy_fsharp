@@ -9,7 +9,7 @@ open Handlers
 Env.Load() |> ignore
 
 let initBot token =
-    printfn "Start bot init"
+    printfn $"Start bot init"
 
     startBot
         { Config.defaultConfig with

@@ -1,6 +1,7 @@
 # Файлы сборки и выполнения
 bin/
 obj/
+publish/
 *.exe
 *.dll
 *.pdb
@@ -55,3 +56,4 @@ paket-files/
 # Файлы операционной системы
 Thumbs.db
 .DS_Store
+.fake
