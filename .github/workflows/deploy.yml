@@ -24,6 +24,8 @@ jobs:
         port: ${{ secrets.SSH_PORT }}
         script: |
           $ cd ~/../../opt/avrelii
+          pwd
+          ls
           git pull origin main
           docker-compose down
           docker-compose up -d --build
