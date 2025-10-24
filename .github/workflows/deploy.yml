@@ -23,7 +23,7 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT }}
         script: |
-          $ cd ~/../../opt/avrelii
+          cd ~/../../opt/avrelii
           pwd
           ls
           git pull origin main
