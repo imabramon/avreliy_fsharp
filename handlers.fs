@@ -7,10 +7,11 @@ open Funogram.Telegram.Bot
 open Funogram.Types
 open Skin
 open Avrelii
+open Utils
 
-// alias
 type TelegramUpdate = Funogram.Telegram.Types.Update
 type TelegramMessage = Funogram.Telegram.Types.Message
+type TelegramChatType = Funogram.Telegram.Types.ChatType 
 
 let processResultWithValue ifOk (result: Async<Result<'a, ApiResponseError>>) =
   async {
@@ -21,8 +22,6 @@ let processResultWithValue ifOk (result: Async<Result<'a, ApiResponseError>>) =
     
     return result
   }
-
-let currentDir = __SOURCE_DIRECTORY__
 
 let getImagePath () = 
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -47,7 +46,7 @@ let sendMessage context chatId text =
         text
         |> generateQuote imagePath avrelii
     with
-    | Error e -> printfn $"{e}"
+    | Error e -> Error e
     | Ok _ ->
         let inputFile = getInputFile imagePath
         Funogram.Telegram.Api.sendPhoto chatId inputFile ""
@@ -57,23 +56,53 @@ let sendMessage context chatId text =
         )
         |> Async.Ignore
         |> Async.Start
+        Ok 0
+
+let withNoTextError = errorIfNone "Message has no text"
 
 // logic
-let (|HasMessage|HasNoMessage|) (update: TelegramUpdate) =
-    match update.Message with
-    | Some message -> HasMessage message
-    | None -> HasNoMessage
+let getTextForGroup (context: UpdateContext) (message: TelegramMessage) =
+    result {
+        let! selfText =
+            message.Text |> withNoTextError
+        let! replyMessage =
+            message.ReplyToMessage |> errorIfNone "Has no reply message"
+        let! botName = context.Me.Username |> errorIfNone "Cant get bot username"
+        return!
+            match selfText = $"@{botName}" with 
+            | true -> replyMessage.Text |> errorIfNone "Has no reply text"
+            | _ -> Error "Has no bot name when reply"
+    }
 
-let onMessage context (message: TelegramMessage) =
-    let chatId = message.Chat.Id
-
-    match message.Text with
-    | Some text -> text |> sendMessage context chatId
-    | None -> printfn $"Some message without text"
+let getChatId (context: UpdateContext) =
+    match context.Update.Message with 
+    | Some message -> Ok message.Chat.Id
+    | None -> Error "Message hasnt chat id"
+    
+let getText  (context: UpdateContext) = 
+    result {
+        let! message = 
+            context.Update.Message 
+            |> errorIfNone "Update has no message"
+        let chat = message.Chat
+        let chatType = chat.Type
+        return!
+            match chatType with
+            | TelegramChatType.Private -> 
+                    message.Text
+                    |> withNoTextError
+            | TelegramChatType.SuperGroup
+            | TelegramChatType.Group ->
+                getTextForGroup context message
+            | _ -> Error "No implemented chat type"
+    }
 
 let update context =
-    context.Update.UpdateId |> printfn "Received update: %i"
-
-    match context.Update with
-    | HasMessage message -> onMessage context message
-    | _ -> printfn "Recived nonmatchabe update"
+    printfn $"Get update: {context.Update.UpdateId}"
+    match result {
+        let! chatId = getChatId context
+        let! text = getText context
+        return! sendMessage context chatId text
+    } with
+    | Ok _ -> printfn "Update process ok" 
+    | Error e -> printfn $"Error: {e}"

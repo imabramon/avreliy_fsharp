@@ -12,7 +12,7 @@ let getEnvVariable name =
     | value -> Ok value
 
 let getToken =
-    let mode = Environment.GetEnvironmentVariable("DEPLOY_MODE")
+    let mode = Environment.GetEnvironmentVariable "DEPLOY_MODE"
 
     match mode with
     | "prod" -> getEnvVariable "TOKEN"
@@ -25,6 +25,7 @@ type ResultBilder() =
     match x with Ok x -> f x
                | Error e  -> Error e
   member b.Return x = Ok x
+  member b.ReturnFrom x = x
   member b.Using((disposable: #System.IDisposable), f) =
         try
             f disposable
@@ -33,17 +34,19 @@ type ResultBilder() =
 
 let result = ResultBilder()
 
+let errorIfNone  ifNoneError x = 
+    match x with
+    | Some x -> Ok x
+    | None -> Error ifNoneError
+
 type Helper() =
     static member isZero(value: string) = value = ""
     static member isZero(value: int) = value = 0
     static member isZero(value: float32) = value = 0f
-    
     static member nonEmptyWith(value: string, add: string) =
         if Helper.isZero(value) then value else value + add
-    
     static member nonEmptyWith(value: int, add: int) =
         if Helper.isZero(value) then value else value + add
-    
     static member nonEmptyWith(value: float32, add: float32) =
         if Helper.isZero(value) then value else value + add
 
