@@ -12,7 +12,9 @@ open Utils
 type TelegramUpdate = Funogram.Telegram.Types.Update
 type TelegramMessage = Funogram.Telegram.Types.Message
 type TelegramChatType = Funogram.Telegram.Types.ChatType 
-
+type TelegramChat = Funogram.Telegram.Types.Chat
+type TelegramReplyParams =  Funogram.Telegram.Types.ReplyParameters
+type TelegramChatId = Funogram.Telegram.Types.ChatId
 let processResultWithValue ifOk (result: Async<Result<'a, ApiResponseError>>) =
   async {
     let! result = result
@@ -40,16 +42,83 @@ let dispose (f: Funogram.Telegram.Types.InputFile ) =
         f.Dispose()
     | _ -> ()
 
-let sendMessage context chatId text =
+type TextUpdate = {
+    chatId: int64
+    text: string
+    replyMessageId: int64
+}
+
+type SuperTextUpdate = {
+    topicId: int64
+    textUpdate: TextUpdate
+}
+
+type ResolvedUpdate = TextUpdate
+
+type GroupChatType = 
+    | Group
+    | SuperGroup
+
+type ResolvedChatType =
+    | SingleChat
+    | GroupChat of GroupChatType
+
+let (|SingleChat|GroupChat|OtherChat|) (chatType: TelegramChatType, chat: TelegramChat) =
+    match chatType with
+    | TelegramChatType.Private -> SingleChat ResolvedChatType.SingleChat
+    | TelegramChatType.SuperGroup when chat.IsForum = Some true -> GroupChat SuperGroup
+    | TelegramChatType.SuperGroup -> GroupChat Group
+    | TelegramChatType.Group -> GroupChat Group
+    | _ -> OtherChat chatType
+
+let resolveUpdate (context: UpdateContext) = 
+    maybe {
+        let! message = context.Update.Message
+        let! text = message.Text
+        let chat = message.Chat
+        let chatId = chat.Id
+        let chatType = chat.Type
+        match chatType, chat with
+        | SingleChat _ -> 
+            return {
+                chatId = chatId
+                text = text
+                replyMessageId = message.MessageId
+            }
+        | GroupChat _ ->
+            let! replyMessage = message.ReplyToMessage
+            let! replyText = replyMessage.Text
+            let! botName = context.Me.Username
+            match text = $"@{botName}" with 
+            | true -> 
+                return {
+                    chatId = chatId
+                    replyMessageId = replyMessage.MessageId
+                    text = replyText
+                }
+            | _ -> ignore()
+        | _ -> ignore()
+    }
+
+let sendPhoto (update: ResolvedUpdate) chatId inputFile =
+    let sendler = Funogram.Telegram.Api.sendPhoto chatId inputFile ""
+    let chatId = TelegramChatId.Int chatId
+    let replyInfo = TelegramReplyParams.Create (update.replyMessageId, chatId)
+    { sendler with 
+         ReplyParameters = Some replyInfo
+    }
+
+let sendMessage context (update: ResolvedUpdate) =
     let imagePath = getImagePath()
+    let textUpdate = update
     match 
-        text
+        textUpdate.text
         |> generateQuote imagePath avrelii
     with
     | Error e -> Error e
     | Ok _ ->
         let inputFile = getInputFile imagePath
-        Funogram.Telegram.Api.sendPhoto chatId inputFile ""
+        sendPhoto update textUpdate.chatId inputFile 
         |> api context.Config
         |> processResultWithValue (fun _ -> 
             dispose inputFile
@@ -58,51 +127,12 @@ let sendMessage context chatId text =
         |> Async.Start
         Ok 0
 
-let withNoTextError = errorIfNone "Message has no text"
-
-// logic
-let getTextForGroup (context: UpdateContext) (message: TelegramMessage) =
-    result {
-        let! selfText =
-            message.Text |> withNoTextError
-        let! replyMessage =
-            message.ReplyToMessage |> errorIfNone "Has no reply message"
-        let! botName = context.Me.Username |> errorIfNone "Cant get bot username"
-        return!
-            match selfText = $"@{botName}" with 
-            | true -> replyMessage.Text |> errorIfNone "Has no reply text"
-            | _ -> Error "Has no bot name when reply"
-    }
-
-let getChatId (context: UpdateContext) =
-    match context.Update.Message with 
-    | Some message -> Ok message.Chat.Id
-    | None -> Error "Message hasnt chat id"
-    
-let getText  (context: UpdateContext) = 
-    result {
-        let! message = 
-            context.Update.Message 
-            |> errorIfNone "Update has no message"
-        let chat = message.Chat
-        let chatType = chat.Type
-        return!
-            match chatType with
-            | TelegramChatType.Private -> 
-                    message.Text
-                    |> withNoTextError
-            | TelegramChatType.SuperGroup
-            | TelegramChatType.Group ->
-                getTextForGroup context message
-            | _ -> Error "No implemented chat type"
-    }
-
 let update context =
     printfn $"Get update: {context.Update.UpdateId}"
-    match result {
-        let! chatId = getChatId context
-        let! text = getText context
-        return! sendMessage context chatId text
-    } with
-    | Ok _ -> printfn "Update process ok" 
-    | Error e -> printfn $"Error: {e}"
+    match resolveUpdate context with
+    | Some resolved ->
+        match sendMessage context resolved with
+        | Ok _ -> printfn "Update process ok" 
+        | Error e -> printfn $"Error: {e}"
+    | None -> printfn "Message in not for proccessing"
+    

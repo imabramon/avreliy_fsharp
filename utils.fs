@@ -39,6 +39,11 @@ let errorIfNone  ifNoneError x =
     | Some x -> Ok x
     | None -> Error ifNoneError
 
+let withDefault defualtValue value = 
+    match value with
+    | Some value -> value
+    | None -> defualtValue
+
 type Helper() =
     static member isZero(value: string) = value = ""
     static member isZero(value: int) = value = 0
@@ -51,3 +56,14 @@ type Helper() =
         if Helper.isZero(value) then value else value + add
 
 type pair<'T> = 'T * 'T
+
+type MaybeBuilder() =
+    member _.Bind(opt, binder) = 
+        match opt with
+        | Some value -> binder value
+        | None -> None
+    member _.Return(value) = Some value
+    member _.ReturnFrom(opt) = opt
+    member _.Zero() = None
+
+let maybe = MaybeBuilder()
