@@ -6,7 +6,7 @@ open Funogram.Api
 open Funogram.Telegram.Bot
 open Funogram.Types
 open Skin
-open Avrelii
+open SimpleSkins
 open Utils
 
 type TelegramUpdate = Funogram.Telegram.Types.Update

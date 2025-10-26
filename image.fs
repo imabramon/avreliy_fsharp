@@ -19,7 +19,8 @@ type Origin =
 type Text =
     { value: string
       fontFamily: FontFamily
-      style: FontStyle }
+      style: FontStyle
+      color: Color option }
 
 type Ctx = IImageProcessingContext
 type AbstactDrawJob = Ctx -> unit
@@ -130,11 +131,12 @@ let drawText (size: float32) (text: Text) =
     let font = Font(text.fontFamily, size, text.style)
     let size = measureTextSize font text.value
     let options = RichTextOptions(font)
+    let color = text.color |> withDefault Color.Black
 
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
         options.Origin <- PointF(x, y)
-        ctx.DrawText(options, text.value, Color.Black) |> ignore
+        ctx.DrawText(options, text.value, color) |> ignore
 
     { size = size; draw = draw }
 
@@ -145,12 +147,13 @@ let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (text: Text) =
     let font = Font(text.fontFamily, fontSize, text.style)
     let wrappedText = wrapText font w text.value
     let size = measureTextSize font wrappedText
+    let color = text.color |> withDefault Color.Black
 
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
         let options = RichTextOptions(font)
         options.Origin <- PointF(x, y)
-        ctx.DrawText(options, wrappedText, Color.Black) |> ignore
+        ctx.DrawText(options, wrappedText, color) |> ignore
 
     { size = size; draw = draw }
 
