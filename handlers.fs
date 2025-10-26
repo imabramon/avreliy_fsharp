@@ -15,11 +15,11 @@ type TelegramChatType = Funogram.Telegram.Types.ChatType
 type TelegramChat = Funogram.Telegram.Types.Chat
 type TelegramReplyParams =  Funogram.Telegram.Types.ReplyParameters
 type TelegramChatId = Funogram.Telegram.Types.ChatId
-let processResultWithValue ifOk (result: Async<Result<'a, ApiResponseError>>) =
+let processResultWithValue (result: Async<Result<'a, ApiResponseError>>) =
   async {
     let! result = result
     match result with
-    | Ok _ -> ifOk()
+    | Ok _ -> ignore()
     | Error e -> printfn "Server error: %s" e.Description
     
     return result
@@ -33,14 +33,18 @@ let getInputFile path =
     let fileStream = new FileStream(path, FileMode.Open, FileAccess.Read)
     Funogram.Telegram.Types.InputFile.File(path, fileStream)
 
-let dispose (f: Funogram.Telegram.Types.InputFile ) = 
-    match f with
-    | Funogram.Telegram.Types.InputFile.File (p, f) -> 
-        match File.Exists(p) with
-        | true -> File.Delete(p)
-        | _ -> () 
-        f.Dispose()
-    | _ -> ()
+let dispose (f: Funogram.Telegram.Types.InputFile ) result = 
+    async {
+        let! res = result
+        match f with
+        | Funogram.Telegram.Types.InputFile.File (p, f) -> 
+            match File.Exists(p) with
+            | true -> File.Delete(p)
+            | _ -> () 
+            f.Dispose()
+        | _ -> ()
+        return result
+    }
 
 type TextUpdate = {
     chatId: int64
@@ -120,9 +124,8 @@ let sendMessage context (update: ResolvedUpdate) =
         let inputFile = getInputFile imagePath
         sendPhoto update textUpdate.chatId inputFile 
         |> api context.Config
-        |> processResultWithValue (fun _ -> 
-            dispose inputFile
-        )
+        |> processResultWithValue
+        |> dispose inputFile
         |> Async.Ignore
         |> Async.Start
         Ok 0
