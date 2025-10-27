@@ -52,7 +52,8 @@ let dispose (f: Funogram.Telegram.Types.InputFile) result =
     }
 
 type TextUpdate =
-    { chatId: int64
+    { skin: string -> Result<Skin, string>
+      chatId: int64
       text: string
       replyMessageId: int64 }
 
@@ -78,6 +79,36 @@ let (|SingleChat|GroupChat|OtherChat|) (chatType: TelegramChatType, chat: Telegr
     | TelegramChatType.Group -> GroupChat Group
     | _ -> OtherChat chatType
 
+let skinByName name =
+    match name with
+    | "аврелий"
+    | "авр"
+    | "Аврелий" -> Some avrelii
+    | "стетхем"
+    | "Стетхем"
+    | "стет" -> Some stetham
+    | "чад"
+    | "Чад"
+    | "Chad" -> Some chad
+    | "Джокер"
+    | "джокер"
+    | "joker" -> Some joker
+    | _ -> None
+
+let (|IsNeedQuote|DontNeed|) (text: string, botName) =
+    let parts =
+        text.Split([| " " |], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+
+    let resolvedBotTag = $"@{botName}"
+    let checkBotTag tag = resolvedBotTag = tag
+
+    match parts with
+    | botTag :: skinName :: [] when checkBotTag botTag ->
+        let skin = skinByName skinName
+        IsNeedQuote skin
+    | botTag :: rest when checkBotTag botTag -> IsNeedQuote None
+    | _ -> DontNeed
+
 let resolveUpdate (context: UpdateContext) =
     maybe {
         let! message = context.Update.Message
@@ -85,11 +116,13 @@ let resolveUpdate (context: UpdateContext) =
         let chat = message.Chat
         let chatId = chat.Id
         let chatType = chat.Type
+        let defaultSkin = avrelii
 
         match chatType, chat with
         | SingleChat _ ->
             return
-                { chatId = chatId
+                { skin = defaultSkin
+                  chatId = chatId
                   text = text
                   replyMessageId = message.MessageId }
         | GroupChat _ ->
@@ -97,10 +130,13 @@ let resolveUpdate (context: UpdateContext) =
             let! replyText = replyMessage.Text
             let! botName = context.Me.Username
 
-            match text = $"@{botName}" with
-            | true ->
+            match text, botName with
+            | IsNeedQuote choisenSkin ->
+                let skin = choisenSkin |> withDefault defaultSkin
+
                 return
-                    { chatId = chatId
+                    { skin = skin
+                      chatId = chatId
                       replyMessageId = replyMessage.MessageId
                       text = replyText }
             | _ -> ignore ()
@@ -119,7 +155,7 @@ let sendMessage context (update: ResolvedUpdate) =
     let imagePath = getImagePath ()
     let textUpdate = update
 
-    match textUpdate.text |> generateQuote imagePath avrelii with
+    match textUpdate.text |> generateQuote imagePath update.skin with
     | Error e -> Error e
     | Ok _ ->
         let inputFile = getInputFile imagePath
