@@ -75,3 +75,5 @@ type MaybeBuilder() =
     member _.Zero() = None
 
 let maybe = MaybeBuilder()
+
+let append arr elem = Array.append arr [| elem |]

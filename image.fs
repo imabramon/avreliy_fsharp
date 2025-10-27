@@ -16,9 +16,8 @@ type Origin =
     { origin: PointF
       position: OriginPosition }
 
-type Text =
-    { value: string
-      fontFamily: FontFamily
+type TextStyle =
+    { fontFamily: FontFamily
       style: FontStyle
       color: Color option }
 
@@ -122,32 +121,31 @@ let pointOf (origin: Origin) (rect: float32 * float32) =
         x0, y0
     | Raw -> x, y
 
-
 let measureTextSize font text =
     let size = measureText font text
     size.Width, size.Height
 
-let drawText (size: float32) (text: Text) =
-    let font = Font(text.fontFamily, size, text.style)
-    let size = measureTextSize font text.value
+let drawText (size: float32) (style: TextStyle) text =
+    let font = Font(style.fontFamily, size, style.style)
+    let size = measureTextSize font text
     let options = RichTextOptions(font)
-    let color = text.color |> withDefault Color.Black
+    let color = style.color |> withDefault Color.Black
 
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
         options.Origin <- PointF(x, y)
-        ctx.DrawText(options, text.value, color) |> ignore
+        ctx.DrawText(options, text, color) |> ignore
 
     { size = size; draw = draw }
 
-let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (text: Text) =
+let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextStyle) text =
     let w, h = rect
     let min, max = sizeRange
-    let fontSize = findOptimalFontSize text.fontFamily text.style text.value w h min max
-    let font = Font(text.fontFamily, fontSize, text.style)
-    let wrappedText = wrapText font w text.value
+    let fontSize = findOptimalFontSize style.fontFamily style.style text w h min max
+    let font = Font(style.fontFamily, fontSize, style.style)
+    let wrappedText = wrapText font w text
     let size = measureTextSize font wrappedText
-    let color = text.color |> withDefault Color.Black
+    let color = style.color |> withDefault Color.Black
 
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
@@ -161,3 +159,7 @@ let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (text: Text) =
 let generateImage (image: Image) (outputPath: string) (jobs: AbstactDrawJob array) =
     Array.ForEach(jobs, (fun job -> image.Mutate job))
     image.Save outputPath
+
+let centredIn x y =
+    { origin = PointF(x, y)
+      position = Centred }

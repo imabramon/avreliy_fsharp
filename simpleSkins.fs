@@ -15,151 +15,103 @@ let fontPath =
 
 type Rect = { size: float32 pair; origin: Origin }
 
-type TextInfo = { rect: Rect; color: Color option }
+type AuthorInfo = { name: string; offset: float32 }
 
-type AuthorInfo =
-    { authorName: string
-      getOrigin: Rect -> Origin }
-
-type SimpleSkinInfo =
-    { textInfo: TextInfo
-      authorInfo: AuthorInfo
-      backgroundPath: string }
+type SimpleSkinInfoV2 =
+    { backgroundPath: string
+      quoteRect: Rect
+      author: AuthorInfo option
+      color: Color }
 
 let MIN_FONT_SIZE = 2f
 let MAX_FONT_SIZE = 32f
 
+let getOrigin quoteRect offsetX =
+    let offsetY = 20f
+    let _, quoteHeight = quoteRect.size
+    let quote = quoteRect.origin.origin
+
+    { origin = PointF(quote.X + offsetX, quote.Y + quoteHeight / 2f + offsetY)
+      position = Raw }
+
+let addAuthorDraw author rect style draws =
+    match author with
+    | None -> draws
+    | Some author ->
+        let origin = getOrigin rect author.offset
+        let authorDraw = drawText MAX_FONT_SIZE style author.name
+        append draws (authorDraw.draw origin)
+
 let simpleSkin skinInfo text =
     result {
-        let color = skinInfo.textInfo.color
-        let rect = skinInfo.textInfo.rect
-        let authorName = skinInfo.authorInfo.authorName
-        let backgroundPath = skinInfo.backgroundPath
+        let color = skinInfo.color
+        let rect = skinInfo.quoteRect
+        let backgroundPath = Path.Combine(currentDir, skinInfo.backgroundPath)
 
         let! fontFamily = getFontFamily fontPath
         let fontStyle = FontStyle()
 
-        let quoteText =
-            { value = text
-              fontFamily = fontFamily
+        let style =
+            { fontFamily = fontFamily
               style = fontStyle
-              color = color }
+              color = Some color }
 
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = drawTextInRect quoteRect quoteSizeRange quoteText
+        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style text
         let resolvedRect = { rect with size = quoteDraw.size }
 
-
-        let authorText =
-            { value = authorName
-              fontFamily = fontFamily
-              style = fontStyle
-              color = color }
-
-        let authorOrigin = skinInfo.authorInfo.getOrigin resolvedRect
-        let authorDraw = drawText MAX_FONT_SIZE authorText
+        let baseDraws = [| quoteDraw.draw quoteOrigin |]
 
         return
             { background = backgroundPath
-              draw = [| quoteDraw.draw quoteOrigin; authorDraw.draw authorOrigin |] }
+              draw = addAuthorDraw skinInfo.author resolvedRect style baseDraws }
     }
 
 let avrelii =
-    let offsetX = 84f
-    let offsetY = 20f
-
-    let getOrigin quoteRect =
-        let _, quoteHeight = quoteRect.size
-        let quote = quoteRect.origin.origin
-
-        { origin = PointF(quote.X + offsetX, quote.Y + quoteHeight / 2f + offsetY)
-          position = Raw }
-
     let info =
-        { backgroundPath = Path.Combine(currentDir, "./assets/avrelii.png")
-          textInfo =
-            { rect =
-                { size = 680f, 480f
-                  origin =
-                    { origin = PointF(859f, 360f)
-                      position = Centred } }
-              color = Some Color.Black }
-          authorInfo =
-            { authorName = "Марк Аврелий"
-              getOrigin = getOrigin } }
+        { backgroundPath = "./assets/avrelii.png"
+          quoteRect =
+            { origin = centredIn 859f 360f
+              size = 680f, 480f }
+          author = Some { name = "Марк Аврелий"; offset = 84f }
+          color = Color.Black }
 
     simpleSkin info
 
 let stetham =
-    let offsetX = -96f
-    let offsetY = 20f
-
-    let getOrigin quoteRect =
-        let _, quoteHeight = quoteRect.size
-        let quote = quoteRect.origin.origin
-
-        { origin = PointF(quote.X + offsetX, quote.Y + quoteHeight / 2f + offsetY)
-          position = Raw }
-
     let info =
-        { backgroundPath = Path.Combine(currentDir, "./assets/stetham.png")
-          textInfo =
-            { rect =
-                { size = 510f, 565f
-                  origin =
-                    { origin = PointF(296f, 282f)
-                      position = Centred } }
-              color = Some Color.Black }
-          authorInfo =
-            { authorName = "Джейсон Стетхем"
-              getOrigin = getOrigin } }
+        { backgroundPath = "./assets/stetham.png"
+          quoteRect =
+            { origin = centredIn 296f 282f
+              size = 510f, 565f }
+          author =
+            Some
+                { name = "Джейсон Стетхем"
+                  offset = -96f }
+          color = Color.Black }
 
     simpleSkin info
 
 let chad =
-    let getOrigin _ =
-        { origin = PointF(0f, 0f)
-          position = Raw }
-
     let info =
-        { backgroundPath = Path.Combine(currentDir, "./assets/chad.png")
-          textInfo =
-            { rect =
-                { size = 770f, 565f
-                  origin =
-                    { origin = PointF(426f, 352f)
-                      position = Centred } }
-              color = Some Color.Black }
-          authorInfo =
-            { authorName = ""
-              getOrigin = getOrigin } }
+        { backgroundPath = "./assets/chad.png"
+          quoteRect =
+            { origin = centredIn 426f 352f
+              size = 770f, 565f }
+          author = None
+          color = Color.Black }
 
     simpleSkin info
 
 let joker =
-    let offsetX = 184f
-    let offsetY = 20f
-
-    let getOrigin quoteRect =
-        let _, quoteHeight = quoteRect.size
-        let quote = quoteRect.origin.origin
-
-        { origin = PointF(quote.X + offsetX, quote.Y + quoteHeight / 2f + offsetY)
-          position = Raw }
-
     let info =
-        { backgroundPath = Path.Combine(currentDir, "./assets/joker.png")
-          textInfo =
-            { rect =
-                { size = 680f, 515f
-                  origin =
-                    { origin = PointF(890f, 360f)
-                      position = Centred } }
-              color = Some Color.White }
-          authorInfo =
-            { authorName = "Джокер"
-              getOrigin = getOrigin } }
+        { backgroundPath = "./assets/joker.png"
+          quoteRect =
+            { origin = centredIn 890f 360f
+              size = 680f, 515f }
+          author = Some { name = "Джокер"; offset = 184f }
+          color = Color.White }
 
     simpleSkin info
