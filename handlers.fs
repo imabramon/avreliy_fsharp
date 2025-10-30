@@ -8,6 +8,7 @@ open Funogram.Types
 open Skin
 open SimpleSkins
 open Utils
+open Database
 
 type TelegramUpdate = Funogram.Telegram.Types.Update
 type TelegramMessage = Funogram.Telegram.Types.Message
@@ -95,6 +96,11 @@ let skinByName name =
     | "joker" -> Some joker
     | _ -> None
 
+let skinByOpionName name =
+    match name with
+    | Some name -> skinByName name
+    | None -> None
+
 let (|IsNeedQuote|DontNeed|) (text: string, botName) =
     let parts =
         text.Split([| " " |], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
@@ -109,14 +115,17 @@ let (|IsNeedQuote|DontNeed|) (text: string, botName) =
     | botTag :: rest when checkBotTag botTag -> IsNeedQuote None
     | _ -> DontNeed
 
-let resolveUpdate (context: UpdateContext) =
+let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
     maybe {
         let! message = context.Update.Message
         let! text = message.Text
         let chat = message.Chat
         let chatId = chat.Id
         let chatType = chat.Type
-        let defaultSkin = avrelii
+        let skinNameByChatId = repository.get chatId |> noneIfError
+        let chatSkin = skinByOpionName skinNameByChatId
+        let defaultSkin = chatSkin |> withDefault avrelii
+        printfn $"chat id: {chatId}"
 
         match chatType, chat with
         | SingleChat _ ->
@@ -169,10 +178,10 @@ let sendMessage context (update: ResolvedUpdate) =
 
         Ok 0
 
-let update context =
+let update (repository: ChatRepository) context =
     printfn $"Get update: {context.Update.UpdateId}"
 
-    match resolveUpdate context with
+    match resolveUpdate repository context with
     | Some resolved ->
         match sendMessage context resolved with
         | Ok _ -> printfn "Update process ok"
