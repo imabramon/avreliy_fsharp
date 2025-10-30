@@ -4,7 +4,7 @@ open System
 open System.IO
 open Funogram.Api
 open Funogram.Telegram.Bot
-open Funogram.Types
+
 open Skin
 open SimpleSkins
 open Utils
@@ -16,17 +16,7 @@ type TelegramChatType = Funogram.Telegram.Types.ChatType
 type TelegramChat = Funogram.Telegram.Types.Chat
 type TelegramReplyParams = Funogram.Telegram.Types.ReplyParameters
 type TelegramChatId = Funogram.Telegram.Types.ChatId
-
-let processResultWithValue (result: Async<Result<'a, ApiResponseError>>) =
-    async {
-        let! result = result
-
-        match result with
-        | Ok _ -> ignore ()
-        | Error e -> printfn "Server error: %s" e.Description
-
-        return result
-    }
+type Id = int64
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -54,15 +44,15 @@ let dispose (f: Funogram.Telegram.Types.InputFile) result =
 
 type TextUpdate =
     { skin: string -> Result<Skin, string>
-      chatId: int64
+      chatId: Id
       text: string
-      replyMessageId: int64 }
+      replyMessageId: Id }
 
-type SuperTextUpdate =
-    { topicId: int64
-      textUpdate: TextUpdate }
+type Command = Start of Id
 
-type ResolvedUpdate = TextUpdate
+type ResolvedUpdate =
+    | TextUpdate of TextUpdate
+    | Command of Command
 
 type GroupChatType =
     | Group
@@ -102,8 +92,7 @@ let skinByOpionName name =
     | None -> None
 
 let (|IsNeedQuote|DontNeed|) (text: string, botName) =
-    let parts =
-        text.Split([| " " |], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+    let parts = toWords text
 
     let resolvedBotTag = $"@{botName}"
     let checkBotTag tag = resolvedBotTag = tag
@@ -129,11 +118,17 @@ let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
 
         match chatType, chat with
         | SingleChat _ ->
-            return
-                { skin = defaultSkin
-                  chatId = chatId
-                  text = text
-                  replyMessageId = message.MessageId }
+            let parts = toWords text
+
+            match parts with
+            | first :: _ when first = "/start" -> return Command(Start chatId)
+            | _ ->
+                return
+                    TextUpdate
+                        { skin = defaultSkin
+                          chatId = chatId
+                          text = text
+                          replyMessageId = message.MessageId }
         | GroupChat _ ->
             let! replyMessage = message.ReplyToMessage
             let! replyText = replyMessage.Text
@@ -144,15 +139,16 @@ let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
                 let skin = choisenSkin |> withDefault defaultSkin
 
                 return
-                    { skin = skin
-                      chatId = chatId
-                      replyMessageId = replyMessage.MessageId
-                      text = replyText }
+                    TextUpdate
+                        { skin = skin
+                          chatId = chatId
+                          replyMessageId = replyMessage.MessageId
+                          text = replyText }
             | _ -> ignore ()
         | _ -> ignore ()
     }
 
-let sendPhoto (update: ResolvedUpdate) chatId inputFile =
+let sendPhoto (update: TextUpdate) chatId inputFile =
     let sendler = Funogram.Telegram.Api.sendPhoto chatId inputFile ""
     let chatId = TelegramChatId.Int chatId
     let replyInfo = TelegramReplyParams.Create(update.replyMessageId, chatId)
@@ -160,7 +156,7 @@ let sendPhoto (update: ResolvedUpdate) chatId inputFile =
     { sendler with
         ReplyParameters = Some replyInfo }
 
-let sendMessage context (update: ResolvedUpdate) =
+let sendQuote context (update: TextUpdate) =
     let imagePath = getImagePath ()
     let textUpdate = update
 
@@ -171,19 +167,38 @@ let sendMessage context (update: ResolvedUpdate) =
 
         sendPhoto update textUpdate.chatId inputFile
         |> api context.Config
-        |> processResultWithValue
+        |> logIfError
         |> dispose inputFile
         |> Async.Ignore
         |> Async.Start
 
         Ok 0
 
+let sendMessage context chatId message =
+    Funogram.Telegram.Api.sendMessage chatId message
+    |> api context.Config
+    |> logIfError
+    |> Async.Ignore
+    |> Async.Start
+
+
+let (|OnText|OnStart|OnEmpty|) (update: ResolvedUpdate option) =
+    match update with
+    | None -> OnEmpty
+    | Some resolved ->
+        match resolved with
+        | TextUpdate update -> OnText update
+        | Command command ->
+            match command with
+            | Start chatId -> OnStart chatId
+
 let update (repository: ChatRepository) context =
     printfn $"Get update: {context.Update.UpdateId}"
 
     match resolveUpdate repository context with
-    | Some resolved ->
-        match sendMessage context resolved with
+    | OnText update ->
+        match sendQuote context update with
         | Ok _ -> printfn "Update process ok"
         | Error e -> printfn $"Error: {e}"
-    | None -> printfn "Message in not for proccessing"
+    | OnStart chatId -> sendMessage context chatId "Привет, я бот цитатник"
+    | OnEmpty -> printfn "Message in not for proccessing"

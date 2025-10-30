@@ -2,6 +2,7 @@ module Utils
 
 open System
 open DotNetEnv
+open Funogram.Types
 
 Env.Load() |> ignore
 
@@ -136,3 +137,20 @@ let toResult fn =
         Ok(fn ())
     with e ->
         Error e.Message
+
+let split (separator: string) (str: string) =
+    str.Split([| separator |], StringSplitOptions.RemoveEmptyEntries)
+    |> Array.toList
+
+let toWords str = split " " str
+
+let logIfError (result: Async<Result<'a, ApiResponseError>>) =
+    async {
+        let! result = result
+
+        match result with
+        | Ok _ -> ignore ()
+        | Error e -> printfn "Server error: %s" e.Description
+
+        return result
+    }
