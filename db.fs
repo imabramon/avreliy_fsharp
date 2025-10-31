@@ -2,6 +2,7 @@ module Database
 
 open Npgsql.FSharp
 open Utils
+open Result
 
 let CHATS_NAME = "chats"
 let P_CHAT_ID = "chat_Id"

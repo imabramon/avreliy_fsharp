@@ -1,7 +1,7 @@
 module Skin
 
 open Image
-open Utils
+open Result
 
 type Skin =
     { background: string

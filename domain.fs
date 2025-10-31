@@ -1,9 +1,9 @@
 module Domain
 
-type PictureSkin = { path: string }
-
-type Skin =
-    | PictureSkin of PictureSkin
-    | Sendler
-
-type ChatContex = { id: int; skin: Skin }
+type TelegramUpdate = Funogram.Telegram.Types.Update
+type TelegramMessage = Funogram.Telegram.Types.Message
+type TelegramChatType = Funogram.Telegram.Types.ChatType
+type TelegramChat = Funogram.Telegram.Types.Chat
+type TelegramReplyParams = Funogram.Telegram.Types.ReplyParameters
+type TelegramChatId = Funogram.Telegram.Types.ChatId
+type Id = int64

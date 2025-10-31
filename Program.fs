@@ -4,7 +4,8 @@ open System
 open DotNetEnv
 open Funogram.Telegram.Bot
 open Utils
-open Handlers
+open Result
+open Routing
 open Database
 
 Env.Load() |> ignore

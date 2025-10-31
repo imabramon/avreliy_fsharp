@@ -9,13 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="utils.fs" />
+    <Compile Include="result.fs" /><Compile Include="maybe.fs" /><Compile Include="utils.fs" /><Compile Include="domain.fs" />
     <Compile Include="db.fs" />
     <Compile Include="image.fs" />
     <Compile Include="skin.fs" />
     <Compile Include="simpleSkins.fs" />
-    <Compile Include="handlers.fs" />
-    <Compile Include="domain.fs" />
+    <Compile Include="handlers.fs" /><Compile Include="routing.fs" />
+    
     <Compile Include="Program.fs" />
   </ItemGroup>
 

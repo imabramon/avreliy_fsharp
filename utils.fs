@@ -20,66 +20,6 @@ let getToken =
     | "dev" -> getEnvVariable "TOKEN_DEV"
     | _ -> Error "Mode is not defined. Cant get Token"
 
-type ResultBilder() =
-    member b.Zero() = Error "Nothing has returned"
-
-    member b.Bind(x, f) =
-        match x with
-        | Ok x -> f x
-        | Error e -> Error e
-
-    member b.Return x = Ok x
-    member b.ReturnFrom x = x
-
-    member b.Using(disposable: #System.IDisposable, f) =
-        try
-            f disposable
-        finally
-            disposable.Dispose()
-
-    member b.TryWith(tryBlock, catchHandler) =
-        try
-            tryBlock ()
-        with e ->
-            catchHandler e
-
-    member b.TryFinally(tryBlock, finallyBlock) =
-        try
-            tryBlock ()
-        finally
-            finallyBlock ()
-
-    member b.Delay(f) = f
-    member b.Run(f) = f ()
-
-    member b.Combine(a, с) =
-        match a with
-        | Ok _ -> с ()
-        | Error e -> Error e
-
-    member b.While(guard, body) =
-        if not (guard ()) then
-            Ok()
-        else
-            match body () with
-            | Ok _ -> b.While(guard, body)
-            | Error e -> Error e
-
-    member b.For(sequence: seq<'T>, body: 'T -> Result<_, _>) =
-        use enumerator = sequence.GetEnumerator()
-
-        let rec loop () =
-            if enumerator.MoveNext() then
-                match body enumerator.Current with
-                | Ok _ -> loop ()
-                | Error e -> Error e
-            else
-                Ok()
-
-        loop ()
-
-let result = ResultBilder()
-
 let errorIfNone ifNoneError x =
     match x with
     | Some x -> Ok x
@@ -117,18 +57,6 @@ type Helper() =
         if Helper.isZero (value) then value else value + add
 
 type pair<'T> = 'T * 'T
-
-type MaybeBuilder() =
-    member _.Bind(opt, binder) =
-        match opt with
-        | Some value -> binder value
-        | None -> None
-
-    member _.Return(value) = Some value
-    member _.ReturnFrom(opt) = opt
-    member _.Zero() = None
-
-let maybe = MaybeBuilder()
 
 let append arr elem = Array.append arr [| elem |]
 
