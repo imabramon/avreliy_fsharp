@@ -1,9 +1,10 @@
 module Domain
 
-type TelegramUpdate = Funogram.Telegram.Types.Update
-type TelegramMessage = Funogram.Telegram.Types.Message
-type TelegramChatType = Funogram.Telegram.Types.ChatType
-type TelegramChat = Funogram.Telegram.Types.Chat
-type TelegramReplyParams = Funogram.Telegram.Types.ReplyParameters
-type TelegramChatId = Funogram.Telegram.Types.ChatId
+type TUpdate = Funogram.Telegram.Types.Update
+type TMessage = Funogram.Telegram.Types.Message
+type TChatType = Funogram.Telegram.Types.ChatType
+type TChat = Funogram.Telegram.Types.Chat
+type TReplyParams = Funogram.Telegram.Types.ReplyParameters
+type TChatId = Funogram.Telegram.Types.ChatId
+type TCallbackQuery = Funogram.Telegram.Types.CallbackQuery
 type Id = int64

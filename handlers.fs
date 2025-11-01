@@ -23,8 +23,8 @@ let dispose (f: Funogram.Telegram.Types.InputFile) result =
 
         match f with
         | Funogram.Telegram.Types.InputFile.File(p, f) ->
-            match File.Exists(p) with
-            | true -> File.Delete(p)
+            match File.Exists p with
+            | true -> File.Delete p
             | _ -> ()
 
             f.Dispose()
@@ -41,8 +41,8 @@ type TextUpdate =
 
 let sendPhoto (update: TextUpdate) chatId inputFile =
     let sendler = Funogram.Telegram.Api.sendPhoto chatId inputFile ""
-    let chatId = TelegramChatId.Int chatId
-    let replyInfo = TelegramReplyParams.Create(update.replyMessageId, chatId)
+    let chatId = TChatId.Int chatId
+    let replyInfo = TReplyParams.Create(update.replyMessageId, chatId)
 
     { sendler with
         ReplyParameters = Some replyInfo }
@@ -71,3 +71,14 @@ let sendMessage context chatId message =
     |> logIfError
     |> Async.Ignore
     |> Async.Start
+
+type Command =
+    | Start
+    | SendChangeSkin
+    | ChangeSkin of string
+
+type CommandUpdate = Id * Command
+
+let proccessCommand (command: CommandUpdate) = ignore
+
+let proccessQuery (query: TCallbackQuery) = ignore
