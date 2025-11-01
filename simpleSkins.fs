@@ -4,9 +4,11 @@ open System
 open System.IO
 open SixLabors.Fonts
 open SixLabors.ImageSharp
-open Image
+
 open Skin
+open Image
 open Utils
+open Result
 
 let currentDir = Environment.CurrentDirectory
 
@@ -70,7 +72,7 @@ let simpleSkin skinInfo text =
     }
 
 let avrelii =
-    let info =
+    simpleSkin
         { backgroundPath = "./assets/avrelii.png"
           quoteRect =
             { origin = centredIn 859f 360f
@@ -78,10 +80,8 @@ let avrelii =
           author = Some { name = "Марк Аврелий"; offset = 84f }
           color = Color.Black }
 
-    simpleSkin info
-
 let stetham =
-    let info =
+    simpleSkin
         { backgroundPath = "./assets/stetham.png"
           quoteRect =
             { origin = centredIn 296f 282f
@@ -92,10 +92,8 @@ let stetham =
                   offset = -96f }
           color = Color.Black }
 
-    simpleSkin info
-
 let chad =
-    let info =
+    simpleSkin
         { backgroundPath = "./assets/chad.png"
           quoteRect =
             { origin = centredIn 426f 352f
@@ -103,10 +101,8 @@ let chad =
           author = None
           color = Color.Black }
 
-    simpleSkin info
-
 let joker =
-    let info =
+    simpleSkin
         { backgroundPath = "./assets/joker.png"
           quoteRect =
             { origin = centredIn 890f 360f
@@ -114,4 +110,11 @@ let joker =
           author = Some { name = "Джокер"; offset = 184f }
           color = Color.White }
 
-    simpleSkin info
+let availableSkins =
+    [| { publicName = "Марк Аврелий"
+         dbValue = "avrelii" }
+       { publicName = "Джейсон Стетхем"
+         dbValue = "stetham" }
+       { publicName = "Чад"; dbValue = "chad" }
+       { publicName = "Джокер"
+         dbValue = "joker" } |]

@@ -2,6 +2,7 @@ module Utils
 
 open System
 open DotNetEnv
+open Funogram.Types
 
 Env.Load() |> ignore
 
@@ -19,34 +20,32 @@ let getToken =
     | "dev" -> getEnvVariable "TOKEN_DEV"
     | _ -> Error "Mode is not defined. Cant get Token"
 
-type ResultBilder() =
-    member b.Zero() = Error "Nothing has returned"
-
-    member b.Bind(x, f) =
-        match x with
-        | Ok x -> f x
-        | Error e -> Error e
-
-    member b.Return x = Ok x
-    member b.ReturnFrom x = x
-
-    member b.Using((disposable: #System.IDisposable), f) =
-        try
-            f disposable
-        finally
-            disposable.Dispose()
-
-let result = ResultBilder()
-
 let errorIfNone ifNoneError x =
     match x with
     | Some x -> Ok x
     | None -> Error ifNoneError
 
+let noneIfError x =
+    match x with
+    | Ok x -> x
+    | Error e ->
+        printfn $"Error: {e}"
+        None
+
+let ignoreResult x =
+    match x with
+    | Ok _ -> Ok()
+    | Error e -> Error e
+
 let withDefault defualtValue value =
     match value with
     | Some value -> value
     | None -> defualtValue
+
+let ignoreMaybe x =
+    match x with
+    | Some _ -> ()
+    | None -> ()
 
 type Helper() =
     static member isZero(value: string) = value = ""
@@ -64,16 +63,30 @@ type Helper() =
 
 type pair<'T> = 'T * 'T
 
-type MaybeBuilder() =
-    member _.Bind(opt, binder) =
-        match opt with
-        | Some value -> binder value
-        | None -> None
-
-    member _.Return(value) = Some value
-    member _.ReturnFrom(opt) = opt
-    member _.Zero() = None
-
-let maybe = MaybeBuilder()
-
 let append arr elem = Array.append arr [| elem |]
+
+let toResult fn =
+    try
+        Ok(fn ())
+    with e ->
+        Error e.Message
+
+let split (separator: string) (str: string) =
+    str.Split([| separator |], StringSplitOptions.RemoveEmptyEntries)
+    |> Array.toList
+
+let toWords str = split " " str
+
+let logIfError (result: Async<Result<'a, ApiResponseError>>) =
+    async {
+        let! result = result
+
+        match result with
+        | Ok _ -> ignore ()
+        | Error e -> printfn "Server error: %s" e.Description
+
+        return result
+    }
+
+let asyncStart req =
+    req |> logIfError |> Async.Ignore |> Async.Start
