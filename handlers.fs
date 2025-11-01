@@ -79,6 +79,11 @@ type Command =
 
 type CommandUpdate = Id * Command
 
-let proccessCommand (command: CommandUpdate) = ignore
+let proccessCommand context (command: CommandUpdate) =
+    let chatId, command = command
+
+    match command with
+    | Start -> sendMessage context chatId "Привет я бот цитатник"
+    | _ -> printfn "Command is not implemented"
 
 let proccessQuery (query: TCallbackQuery) = ignore

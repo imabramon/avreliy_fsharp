@@ -149,7 +149,7 @@ let update (repository: ChatRepository) context =
             match sendQuote context update with
             | Ok _ -> printfn "Update process ok"
             | Error e -> printfn $"Error: {e}"
-        | CommandUpdate command -> proccessCommand command |> ignore
+        | CommandUpdate command -> proccessCommand context command
         | QueryUpdate query -> proccessQuery query |> ignore
     }
     |> ignore
