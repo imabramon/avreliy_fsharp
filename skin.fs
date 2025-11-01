@@ -1,7 +1,7 @@
 module Skin
 
 open Image
-open Utils
+open Result
 
 type Skin =
     { background: string
@@ -14,3 +14,5 @@ let generateQuote path skin quote =
         skin.draw |> generateImage image path
         return 0
     }
+
+type TSkinInfo = { publicName: string; dbValue: string }
