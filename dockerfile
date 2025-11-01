@@ -11,7 +11,6 @@ RUN dotnet restore --verbosity quiet
 
 COPY . .
 RUN dotnet publish -c Release -o /app/publish \
-    --no-restore \
     --verbosity minimal \
     /p:Optimize=true
 
