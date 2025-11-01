@@ -4,6 +4,12 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>QuoteBot</AssemblyName>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+    <NeutralResourcesLanguage>en-US</NeutralResourcesLanguage>
+    <PublishTrimmed>true</PublishTrimmed>
+    <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup><Compile Include="utils.fs" /><Compile Include="image.fs" /><Compile Include="skin.fs" /><Compile Include="simpleSkins.fs" /><Compile Include="handlers.fs" /><Compile Include="domain.fs" />
