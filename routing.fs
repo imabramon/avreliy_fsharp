@@ -36,10 +36,13 @@ let skinByName name =
     match name with
     | "аврелий"
     | "авр"
-    | "Аврелий" -> Some avrelii
+    | "Аврелий"
+    | "avrelii" -> Some avrelii
     | "стетхем"
     | "Стетхем"
+    | "stetham"
     | "стет" -> Some stetham
+    | "chad"
     | "чад"
     | "Чад"
     | "Chad" -> Some chad
@@ -58,14 +61,14 @@ let (|OnMessage|OnCallback|OnEmpty|) (context: UpdateContext) =
     let message = context.Update.Message
 
     match query with
-    | Some query -> OnCallback query
+    | Some query -> OnCallback(query)
     | None ->
         match message with
         | None -> OnEmpty
         | Some message ->
             match message.Text with
             | None -> OnEmpty
-            | Some text -> OnMessage text
+            | Some text -> OnMessage(message, text)
 
 let (|IsNeedQuote|DontNeed|) (text: string, botName) =
     let parts = toWords text
@@ -90,26 +93,25 @@ let (|HasCommand|HasNoCommand|) (text: string) =
 let resolveCommand commandText (chatType: ResolvedChatType) =
     match commandText, chatType with
     | "/start", SingleChat -> Some Start
-    | "/setSkin", _ -> Some SendChangeSkin
+    | "/changeSkin", _ -> Some SendChangeSkin
     | _ -> None
 
 let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
     maybe {
-        let! message = context.Update.Message
-        let chat = message.Chat
-        let chatId = chat.Id
-        let! chatType = resolveChatType chat
-        let skinNameByChatId = repository.get chatId |> noneIfError
-        let chatSkin = skinByOpionName skinNameByChatId
-        let defaultSkin = chatSkin |> withDefault avrelii
-
         match context with
         | OnCallback query -> return QueryUpdate query
-        | OnMessage text ->
+        | OnMessage(message, text) ->
+            let chat = message.Chat
+            let chatId = chat.Id
+            let! chatType = resolveChatType chat
+            let skinNameByChatId = repository.get chatId |> noneIfError
+            let chatSkin = skinByOpionName skinNameByChatId
+            let defaultSkin = chatSkin |> withDefault avrelii
+
             match text with
             | HasCommand command ->
                 let! command = resolveCommand command chatType
-                return CommandUpdate(chatId, command)
+                return CommandUpdate(chatId, message.MessageId, command)
             | _ ->
                 match chatType with
                 | SingleChat ->
@@ -150,6 +152,6 @@ let update (repository: ChatRepository) context =
             | Ok _ -> printfn "Update process ok"
             | Error e -> printfn $"Error: {e}"
         | CommandUpdate command -> proccessCommand context command
-        | QueryUpdate query -> proccessQuery query |> ignore
+        | QueryUpdate query -> proccessQuery repository context query |> ignore
     }
     |> ignore

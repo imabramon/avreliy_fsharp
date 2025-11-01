@@ -42,6 +42,11 @@ let withDefault defualtValue value =
     | Some value -> value
     | None -> defualtValue
 
+let ignoreMaybe x =
+    match x with
+    | Some _ -> ()
+    | None -> ()
+
 type Helper() =
     static member isZero(value: string) = value = ""
     static member isZero(value: int) = value = 0
@@ -82,3 +87,6 @@ let logIfError (result: Async<Result<'a, ApiResponseError>>) =
 
         return result
     }
+
+let asyncStart req =
+    req |> logIfError |> Async.Ignore |> Async.Start

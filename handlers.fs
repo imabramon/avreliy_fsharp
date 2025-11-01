@@ -4,10 +4,14 @@ open System
 open System.IO
 open Funogram.Api
 open Funogram.Telegram.Bot
+open Funogram.Telegram.Types
 
 open Domain
 open Skin
 open Utils
+open Maybe
+open SimpleSkins
+open Database
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -15,14 +19,14 @@ let getImagePath () =
 
 let getInputFile path =
     let fileStream = new FileStream(path, FileMode.Open, FileAccess.Read)
-    Funogram.Telegram.Types.InputFile.File(path, fileStream)
+    InputFile.File(path, fileStream)
 
 let dispose (f: Funogram.Telegram.Types.InputFile) result =
     async {
         let! res = result
 
         match f with
-        | Funogram.Telegram.Types.InputFile.File(p, f) ->
+        | InputFile.File(p, f) ->
             match File.Exists p with
             | true -> File.Delete p
             | _ -> ()
@@ -30,7 +34,7 @@ let dispose (f: Funogram.Telegram.Types.InputFile) result =
             f.Dispose()
         | _ -> ()
 
-        return result
+        return res
     }
 
 type TextUpdate =
@@ -41,8 +45,8 @@ type TextUpdate =
 
 let sendPhoto (update: TextUpdate) chatId inputFile =
     let sendler = Funogram.Telegram.Api.sendPhoto chatId inputFile ""
-    let chatId = TChatId.Int chatId
-    let replyInfo = TReplyParams.Create(update.replyMessageId, chatId)
+    let chatId = Int chatId
+    let replyInfo = ReplyParameters.Create(update.replyMessageId, chatId)
 
     { sendler with
         ReplyParameters = Some replyInfo }
@@ -58,32 +62,76 @@ let sendQuote context (update: TextUpdate) =
 
         sendPhoto update textUpdate.chatId inputFile
         |> api context.Config
-        |> logIfError
         |> dispose inputFile
-        |> Async.Ignore
-        |> Async.Start
+        |> asyncStart
 
         Ok 0
 
-let sendMessage context chatId message =
+let sendMessage context chatId replyId message =
     Funogram.Telegram.Api.sendMessage chatId message
     |> api context.Config
-    |> logIfError
-    |> Async.Ignore
-    |> Async.Start
+    |> asyncStart
 
 type Command =
     | Start
     | SendChangeSkin
     | ChangeSkin of string
 
-type CommandUpdate = Id * Command
+type CommandUpdate = Id * Id * Command
+
+let sendMessageMarkup context chatId replyId message markup =
+    let req = Funogram.Telegram.Api.sendMessageMarkup chatId message markup
+
+    { req with
+        ReplyParameters = Some(ReplyParameters.Create(replyId, Int chatId)) }
+    |> api context.Config
+    |> asyncStart
+
+let SET_SKIN = "setSkin"
+
+let createChaneSkinMarkup skinsInfo =
+    skinsInfo
+    |> Array.map (fun skinInfo ->
+        [| InlineKeyboardButton.Create(skinInfo.publicName, callbackData = $"{SET_SKIN},{skinInfo.dbValue}") |])
+    |> TInlineKeyboardMarkup.Create
+    |> InlineKeyboardMarkup
+
+let sendChangeSkinMessage context chatId messageId =
+    availableSkins
+    |> createChaneSkinMarkup
+    |> sendMessageMarkup context chatId messageId "Доступные скины для цитат:"
 
 let proccessCommand context (command: CommandUpdate) =
-    let chatId, command = command
+    let chatId, messageId, command = command
 
     match command with
-    | Start -> sendMessage context chatId "Привет я бот цитатник"
+    | Start -> sendMessage context chatId messageId "Привет я бот цитатник"
+    | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
     | _ -> printfn "Command is not implemented"
 
-let proccessQuery (query: TCallbackQuery) = ignore
+let resolveMessage message =
+    match message with
+    | Some(InaccessibleMessage _) -> None
+    | Some(Message message) -> Some message
+    | None -> None
+
+let proccessQuery (repository: ChatRepository) context (query: TCallbackQuery) =
+    maybe {
+        let! data = query.Data
+        let! message = resolveMessage query.Message
+        let chatId = message.Chat.Id
+        let replyId = message.MessageId
+        let parsed = split "," data
+
+        match parsed with
+        | query :: skinName :: _ when query = SET_SKIN ->
+            match repository.add chatId (Some skinName) with
+            | Ok _ ->
+                printfn $"Change skin to {skinName} success"
+                sendMessage context chatId replyId "Смена скина произошла успешно"
+            | Error e ->
+                printfn $"Error: {e}"
+                sendMessage context chatId replyId "Что-то пошло не так и т.д."
+
+        | _ -> printfn "Unsupported query data"
+    }

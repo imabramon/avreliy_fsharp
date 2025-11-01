@@ -14,3 +14,5 @@ let generateQuote path skin quote =
         skin.draw |> generateImage image path
         return 0
     }
+
+type TSkinInfo = { publicName: string; dbValue: string }

@@ -109,3 +109,12 @@ let joker =
               size = 680f, 515f }
           author = Some { name = "Джокер"; offset = 184f }
           color = Color.White }
+
+let availableSkins =
+    [| { publicName = "Марк Аврелий"
+         dbValue = "avrelii" }
+       { publicName = "Джейсон Стетхем"
+         dbValue = "stetham" }
+       { publicName = "Чад"; dbValue = "chad" }
+       { publicName = "Джокер"
+         dbValue = "joker" } |]
