@@ -8,12 +8,14 @@
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
     <NeutralResourcesLanguage>en-US</NeutralResourcesLanguage>
-    <PublishTrimmed>true</PublishTrimmed>
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="result.fs" /><Compile Include="maybe.fs" /><Compile Include="utils.fs" /><Compile Include="domain.fs" />
+    <Compile Include="result.fs" />
+    <Compile Include="maybe.fs" />
+    <Compile Include="utils.fs" />
+    <Compile Include="domain.fs" />
     <Compile Include="db.fs" />
     <Compile Include="image.fs" />
     <Compile Include="skin.fs" />
