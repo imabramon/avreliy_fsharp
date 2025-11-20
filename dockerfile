@@ -21,4 +21,4 @@ RUN mkdir -p /app/temp && chmod 777 /app/temp
 ENV DEPLOY_MODE=dev
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
-ENTRYPOINT ["dotnet", "QuoteBot.dll"]
+ENTRYPOINT ["./QuoteBot"]
