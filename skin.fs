@@ -12,7 +12,7 @@ let generateQuote path skin quote =
         let! skin = skin quote
         use! image = getImage skin.background
         skin.draw |> generateImage image path
-        return 0
+        return ()
     }
 
 type TSkinInfo = { publicName: string; dbValue: string }

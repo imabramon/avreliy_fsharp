@@ -7,6 +7,7 @@ open Domain
 open Utils
 open Maybe
 open Handlers
+open Errors
 open Database
 open SimpleSkins
 open Result
@@ -99,10 +100,10 @@ let resolveCommand commandText (chatType: ResolvedChatType) =
     | _ -> None
 
 
-let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
+let resolveUpdate repository (context: UpdateContext) : Result<ResolvedUpdate, ErrorExternal> =
     maybe {
         match context with
-        | OnCallback query -> return QueryUpdate query
+        | OnCallback query -> return Ok(QueryUpdate query)
         | OnMessage(message, text) ->
             let chat = message.Chat
             let chatId = chat.Id
@@ -114,16 +115,18 @@ let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
             match text with
             | HasCommand command ->
                 let! command = resolveCommand command chatType
-                return CommandUpdate(chatId, message.MessageId, command)
+                return Ok(CommandUpdate(chatId, message.MessageId, command))
             | _ ->
                 match chatType with
                 | SingleChat ->
                     return
-                        TextUpdate
-                            { skin = defaultSkin
-                              chatId = chatId
-                              text = text
-                              replyMessageId = message.MessageId }
+                        Ok(
+                            TextUpdate
+                                { skin = defaultSkin
+                                  chatId = chatId
+                                  text = text
+                                  replyMessageId = message.MessageId }
+                        )
                 | GroupChat _ ->
                     let! replyMessage = message.ReplyToMessage
                     let! replyText = replyMessage.Text
@@ -134,30 +137,31 @@ let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
                         let skin = choisenSkin |> withDefault defaultSkin
 
                         return
-                            TextUpdate
-                                { skin = skin
-                                  chatId = chatId
-                                  replyMessageId = replyMessage.MessageId
-                                  text = replyText }
+                            Ok(
+                                TextUpdate
+                                    { skin = skin
+                                      chatId = chatId
+                                      replyMessageId = replyMessage.MessageId
+                                      text = replyText }
+                            )
                     | _ -> return! None
-        | OnEmpty -> return! None
+        | OnEmpty -> return logError "Cant resolve update"
     }
+    |> unwrapOptionResult "Missing data while proccess update"
 
-let proccessUpdate (repository: ChatRepository) context =
-    maybe {
+let proccessUpdate repository context : Result<unit, ErrorExternal> =
+    result {
         printfn $"Get update: {context.Update.UpdateId}"
 
         let! update = resolveUpdate repository context
 
         match update with
-        | TextUpdate update ->
-            match sendQuote context update with
-            | Ok _ -> printfn "Update process ok"
-            | Error e -> printfn $"Error: {e}"
-        | CommandUpdate command -> proccessCommand context command
-        | QueryUpdate query -> proccessQuery repository context query |> ignore
+        | TextUpdate update -> do! sendQuote context update
+        | CommandUpdate command -> do! proccessCommand context command
+        | QueryUpdate query -> do! proccessQuery repository context query
+
+        return ()
     }
-    |> ignore
 
 let checkTime (start: DateTime) update =
     match getTime update with
@@ -167,24 +171,32 @@ let checkTime (start: DateTime) update =
         if diff >= 0.0 then
             Ok()
         else
-            Error $"Time difference is too large: {diff} seconds"
-    | None -> Error "Cant get update time"
+            logError $"Time difference is too large: {diff} seconds"
+    | None -> logError "Cant get update time"
 
 let validateTime date (context: UpdateContext) =
     let update = resolveSupportedUpdate context
 
     match update with
     | CallbackQuery _ -> Ok()
-    | UnsupportedUpdate -> Error "Unsupported update"
+    | UnsupportedUpdate -> logError "Unsupported update"
     | _ -> checkTime date update
 
-let validateUpdate config update : Result<unit, string> =
+let validateUpdate config update =
     result {
         do! validateTime config.startDate update
         return! Ok()
     }
 
 let update botContext update =
-    match validateUpdate botContext.validation update with
-    | Error e -> printfn $"Error: {e}"
-    | Ok _ -> proccessUpdate botContext.repository update
+    match
+        result {
+            do! validateUpdate botContext.validation update
+            do! proccessUpdate botContext.repository update
+        }
+    with
+    | Ok _ -> ()
+    | Error e ->
+        match e with
+        | PublicError e -> printfn $"Public error: {e.message}"
+        | PrivateError e -> printfn $"Private error: {e.message}"

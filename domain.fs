@@ -47,12 +47,12 @@ let getTime update =
     | ChannelPost cp -> Some(cp.Date.ToUniversalTime())
     | _ -> None
 
-type ChatRepository =
-    { add: int64 -> string option -> Result<unit, string>
-      get: int64 -> Result<string option, string> }
+type ChatRepository<'TError> =
+    { add: int64 -> string option -> Result<unit, 'TError>
+      get: int64 -> Result<string option, 'TError> }
 
 type ValidationConfig = { startDate: DateTime }
 
-type BotContext =
-    { repository: ChatRepository
+type BotContext<'TError> =
+    { repository: ChatRepository<'TError>
       validation: ValidationConfig }

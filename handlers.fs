@@ -11,7 +11,8 @@ open Skin
 open Utils
 open Maybe
 open SimpleSkins
-open Database
+open Result
+open Errors
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -38,7 +39,7 @@ let dispose (f: Funogram.Telegram.Types.InputFile) result =
     }
 
 type TextUpdate =
-    { skin: string -> Result<Skin, string>
+    { skin: string -> Result<Skin, ErrorExternal>
       chatId: Id
       text: string
       replyMessageId: Id }
@@ -52,12 +53,12 @@ let sendPhoto (update: TextUpdate) chatId inputFile =
         ReplyParameters = Some replyInfo }
 
 let sendQuote context (update: TextUpdate) =
-    let imagePath = getImagePath ()
-    let textUpdate = update
+    result {
+        let imagePath = getImagePath ()
+        let textUpdate = update
 
-    match textUpdate.text |> generateQuote imagePath update.skin with
-    | Error e -> Error e
-    | Ok _ ->
+        do! generateQuote imagePath update.skin textUpdate.text
+
         let inputFile = getInputFile imagePath
 
         sendPhoto update textUpdate.chatId inputFile
@@ -65,7 +66,9 @@ let sendQuote context (update: TextUpdate) =
         |> dispose inputFile
         |> asyncStart
 
-        Ok 0
+        return ()
+    }
+
 
 let sendMessage context chatId replyId message =
     Funogram.Telegram.Api.sendMessage chatId message
@@ -105,9 +108,13 @@ let proccessCommand context (command: CommandUpdate) =
     let chatId, messageId, command = command
 
     match command with
-    | Start -> sendMessage context chatId messageId "Привет я бот цитатник"
-    | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
-    | _ -> printfn "Command is not implemented"
+    | Start ->
+        sendMessage context chatId messageId "Привет я бот цитатник"
+        Ok()
+    | SendChangeSkin ->
+        sendChangeSkinMessage context chatId messageId
+        Ok()
+    | _ -> sendError "Command is not implemented"
 
 let resolveMessage message =
     match message with
@@ -115,7 +122,7 @@ let resolveMessage message =
     | Some(MaybeInaccessibleMessage.Message message) -> Some message
     | None -> None
 
-let proccessQuery (repository: ChatRepository) context (query: TCallbackQuery) =
+let proccessQuery repository context (query: TCallbackQuery) =
     maybe {
         let! data = query.Data
         let! message = resolveMessage query.Message
@@ -129,9 +136,11 @@ let proccessQuery (repository: ChatRepository) context (query: TCallbackQuery) =
             | Ok _ ->
                 printfn $"Change skin to {skinName} success"
                 sendMessage context chatId replyId "Смена скина произошла успешно"
+                return Ok()
             | Error e ->
                 printfn $"Error: {e}"
                 sendMessage context chatId replyId "Что-то пошло не так и т.д."
-
-        | _ -> printfn "Unsupported query data"
+                return Ok()
+        | _ -> return logError "Unsupported query data"
     }
+    |> unwrapOptionResult "Missing data while process query"

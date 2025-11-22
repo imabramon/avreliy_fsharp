@@ -11,7 +11,7 @@
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup><Compile Include="errors.fs" />
     <Compile Include="result.fs" />
     <Compile Include="maybe.fs" />
     <Compile Include="utils.fs" />

@@ -4,12 +4,14 @@ open System
 open DotNetEnv
 open Funogram.Types
 
+open Errors
+
 Env.Load() |> ignore
 
 
 let getEnvVariable name =
     match Env.GetString(name) with
-    | null -> Error $"Environment variable '{name}' is not defined"
+    | null -> logError $"Environment variable '{name}' is not defined"
     | value -> Ok value
 
 let getToken =
@@ -18,7 +20,7 @@ let getToken =
     match mode with
     | "prod" -> getEnvVariable "TOKEN"
     | "dev" -> getEnvVariable "TOKEN_DEV"
-    | _ -> Error "Mode is not defined. Cant get Token"
+    | _ -> logError "Mode is not defined. Cant get Token"
 
 let errorIfNone ifNoneError x =
     match x with
@@ -65,11 +67,11 @@ type pair<'T> = 'T * 'T
 
 let append arr elem = Array.append arr [| elem |]
 
-let toResult fn =
+let toResult fn : Result<'a, ErrorExternal> =
     try
         Ok(fn ())
     with e ->
-        Error e.Message
+        logError e.Message
 
 let split (separator: string) (str: string) =
     str.Split([| separator |], StringSplitOptions.RemoveEmptyEntries)
@@ -90,3 +92,9 @@ let logIfError (result: Async<Result<'a, ApiResponseError>>) =
 
 let asyncStart req =
     req |> logIfError |> Async.Ignore |> Async.Start
+
+let unwrapOptionResult emptyMessage x =
+    match x with
+    | Some(Ok x) -> Ok x
+    | Some(Error e) -> Error e
+    | None -> logError emptyMessage
