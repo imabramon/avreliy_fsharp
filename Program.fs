@@ -1,6 +1,7 @@
 ﻿module Program
 
 open System
+open Domain
 open DotNetEnv
 open Funogram.Telegram.Bot
 open Utils
