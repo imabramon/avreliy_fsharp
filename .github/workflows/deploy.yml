@@ -23,7 +23,7 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT }}
         script: |
-          mkdir -p /apps/avrelii
+          mkdir -p apps/avrelii
     
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.3
@@ -33,4 +33,4 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.SSH_PORT }}
         source: "."
-        target: "/apps/avrelii"
+        target: "apps/avrelii"
