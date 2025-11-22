@@ -1,5 +1,6 @@
 module Routing
 
+open System
 open Funogram.Telegram.Bot
 
 open Domain
@@ -8,6 +9,7 @@ open Maybe
 open Handlers
 open Database
 open SimpleSkins
+open Result
 
 type ResolvedUpdate =
     | TextUpdate of TextUpdate
@@ -96,6 +98,7 @@ let resolveCommand commandText (chatType: ResolvedChatType) =
     | "/changeSkin", _ -> Some SendChangeSkin
     | _ -> None
 
+
 let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
     maybe {
         match context with
@@ -140,7 +143,7 @@ let resolveUpdate (repository: ChatRepository) (context: UpdateContext) =
         | OnEmpty -> return! None
     }
 
-let update (repository: ChatRepository) context =
+let proccessUpdate (repository: ChatRepository) context =
     maybe {
         printfn $"Get update: {context.Update.UpdateId}"
 
@@ -155,3 +158,33 @@ let update (repository: ChatRepository) context =
         | QueryUpdate query -> proccessQuery repository context query |> ignore
     }
     |> ignore
+
+let checkTime (start: DateTime) update =
+    match getTime update with
+    | Some current ->
+        let diff = (current - start).TotalSeconds
+
+        if diff >= 0.0 then
+            Ok()
+        else
+            Error $"Time difference is too large: {diff} seconds"
+    | None -> Error "Cant get update time"
+
+let validateTime date (context: UpdateContext) =
+    let update = resolveSupportedUpdate context
+
+    match update with
+    | CallbackQuery _ -> Ok()
+    | UnsupportedUpdate -> Error "Unsupported update"
+    | _ -> checkTime date update
+
+let validateUpdate config update : Result<unit, string> =
+    result {
+        do! validateTime config.startDate update
+        return! Ok()
+    }
+
+let update botContext update =
+    match validateUpdate botContext.validation update with
+    | Error e -> printfn $"Error: {e}"
+    | Ok _ -> proccessUpdate botContext.repository update

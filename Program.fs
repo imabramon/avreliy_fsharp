@@ -16,10 +16,14 @@ let initBot () =
         let! db = initDb ()
         printfn $"Start bot init"
 
+        let context =
+            { repository = db
+              validation = { startDate = DateTime.UtcNow } }
+
         startBot
             { Config.defaultConfig with
                 Token = token }
-            (update db)
+            (update context)
             None
         |> Async.RunSynchronously
         |> ignore
