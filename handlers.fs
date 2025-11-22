@@ -112,7 +112,7 @@ let proccessCommand context (command: CommandUpdate) =
 let resolveMessage message =
     match message with
     | Some(InaccessibleMessage _) -> None
-    | Some(Message message) -> Some message
+    | Some(MaybeInaccessibleMessage.Message message) -> Some message
     | None -> None
 
 let proccessQuery (repository: ChatRepository) context (query: TCallbackQuery) =
