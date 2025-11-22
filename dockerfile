@@ -18,7 +18,7 @@ FROM mcr.microsoft.com/dotnet/runtime:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
 RUN mkdir -p /app/temp && chmod 777 /app/temp
-ENV DEPLOY_MODE=dev
+ENV DEPLOY_MODE=prod
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 ENTRYPOINT ["./QuoteBot"]
