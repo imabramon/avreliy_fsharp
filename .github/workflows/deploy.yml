@@ -34,3 +34,19 @@ jobs:
         port: ${{ secrets.SSH_PORT }}
         source: "."
         target: "apps/avrelii"
+
+    - name: Create env
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          cd apps/avrelii
+          rm -f .env
+          echo "TOKEN=${{ secrets.TOKEN }}" >> .env
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
