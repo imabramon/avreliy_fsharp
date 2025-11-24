@@ -211,7 +211,25 @@ let validateUpdate config update =
         return ()
     }
 
+type MessageToReply = { chatId: int64; messageId: int64 }
+
+let getFeetbackInfo (update: UpdateContext) =
+    match resolveSupportedUpdate update with
+    | Message m ->
+        let chatId = m.Chat.Id
+        let messageId = m.MessageId
+
+        Some
+            { chatId = chatId
+              messageId = messageId }
+    | _ -> None
+
+let giveFeedback context info text =
+    sendMessage context info.chatId info.messageId text
+
 let update botContext update =
+    let feedback = getFeetbackInfo update
+
     match
         result {
             do! validateUpdate botContext.validation update
@@ -220,6 +238,6 @@ let update botContext update =
     with
     | Ok _ -> ()
     | Error e ->
-        match e with
-        | PublicError e -> printfn $"Public error: {e.message}"
-        | PrivateError e -> printfn $"Private error: {e.message}"
+        match e, feedback with
+        | PublicError e, Some feedback -> giveFeedback update feedback e.message
+        | _ -> printfn $"Error: {getMessage e}"
