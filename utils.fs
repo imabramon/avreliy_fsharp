@@ -77,6 +77,9 @@ let split (separator: string) (str: string) =
     str.Split([| separator |], StringSplitOptions.RemoveEmptyEntries)
     |> Array.toList
 
+let join separator strs =
+    strs |> List.toArray |> String.concat separator
+
 let toWords str = split " " str
 
 let logIfError (result: Async<Result<'a, ApiResponseError>>) =

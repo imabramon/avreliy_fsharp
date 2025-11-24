@@ -78,7 +78,6 @@ let sendMessage context chatId replyId message =
 type Command =
     | Start
     | SendChangeSkin
-    | ChangeSkin of string
 
 type CommandUpdate = Id * Id * Command
 
@@ -108,23 +107,23 @@ let proccessCommand context (command: CommandUpdate) =
     let chatId, messageId, command = command
 
     match command with
-    | Start ->
-        sendMessage context chatId messageId "Привет я бот цитатник"
-        Ok()
-    | SendChangeSkin ->
-        sendChangeSkinMessage context chatId messageId
-        Ok()
-    | _ -> sendError "Command is not implemented"
+    | Start -> sendMessage context chatId messageId "Привет я бот цитатник"
+    | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
 
 let resolveMessage message =
     match message with
-    | Some(InaccessibleMessage _) -> None
-    | Some(MaybeInaccessibleMessage.Message message) -> Some message
-    | None -> None
+    | Some(InaccessibleMessage _) -> sendError "Не могу получить сообщение: нет доступа"
+    | Some(MaybeInaccessibleMessage.Message message) -> Ok message
+    | None -> sendError "Не могу получить сообщение: нет сообщения"
+
+let getQueryData (query: TCallbackQuery) =
+    match query.Data with
+    | Some data -> Ok data
+    | None -> logError "Empty query"
 
 let proccessQuery repository context (query: TCallbackQuery) =
-    maybe {
-        let! data = query.Data
+    result {
+        let! data = getQueryData query
         let! message = resolveMessage query.Message
         let chatId = message.Chat.Id
         let replyId = message.MessageId
@@ -132,15 +131,8 @@ let proccessQuery repository context (query: TCallbackQuery) =
 
         match parsed with
         | query :: skinName :: _ when query = SET_SKIN ->
-            match repository.add chatId (Some skinName) with
-            | Ok _ ->
-                printfn $"Change skin to {skinName} success"
-                sendMessage context chatId replyId "Смена скина произошла успешно"
-                return Ok()
-            | Error e ->
-                printfn $"Error: {e}"
-                sendMessage context chatId replyId "Что-то пошло не так и т.д."
-                return Ok()
-        | _ -> return logError "Unsupported query data"
+            do! repository.add chatId (Some skinName)
+            printfn $"Change skin to {skinName} success"
+            sendMessage context chatId replyId "Смена скина произошла успешно"
+        | _ -> return! logError "Unsupported query data"
     }
-    |> unwrapOptionResult "Missing data while process query"

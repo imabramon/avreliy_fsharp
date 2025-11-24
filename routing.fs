@@ -17,23 +17,19 @@ type ResolvedUpdate =
     | CommandUpdate of CommandUpdate
     | QueryUpdate of TCallbackQuery
 
-type GroupChatType =
-    | Group
-    | SuperGroup
-
 type ResolvedChatType =
     | SingleChat
-    | GroupChat of GroupChatType
+    | GroupChat
 
 let resolveChatType (chat: TChat) =
     let chatType = chat.Type
 
     match chatType with
-    | TChatType.Private -> Some SingleChat
-    | TChatType.SuperGroup when chat.IsForum = Some true -> Some(GroupChat Group)
-    | TChatType.SuperGroup -> Some(GroupChat SuperGroup)
-    | TChatType.Group -> Some(GroupChat Group)
-    | _ -> None
+    | TChatType.Private -> Ok SingleChat
+    | TChatType.SuperGroup when chat.IsForum = Some true -> Ok GroupChat
+    | TChatType.SuperGroup -> Ok GroupChat
+    | TChatType.Group -> Ok GroupChat
+    | _ -> logError "Unsupported chat type"
 
 let skinByName name =
     match name with
@@ -59,19 +55,19 @@ let skinByOpionName name =
     | Some name -> skinByName name
     | None -> None
 
-let (|OnMessage|OnCallback|OnEmpty|) (context: UpdateContext) =
-    let query = context.Update.CallbackQuery
-    let message = context.Update.Message
 
-    match query with
-    | Some query -> OnCallback(query)
-    | None ->
-        match message with
-        | None -> OnEmpty
-        | Some message ->
-            match message.Text with
-            | None -> OnEmpty
-            | Some text -> OnMessage(message, text)
+type SimpleMessage =
+    { id: int64
+      chatId: int64
+      text: string }
+
+type ReplyMessage =
+    { self: SimpleMessage
+      reply: SimpleMessage }
+
+type ResolvedMessage =
+    | SimpleMessage of SimpleMessage
+    | ReplyMessage of ReplyMessage
 
 let (|IsNeedQuote|DontNeed|) (text: string, botName) =
     let parts = toWords text
@@ -95,59 +91,86 @@ let (|HasCommand|HasNoCommand|) (text: string) =
 
 let resolveCommand commandText (chatType: ResolvedChatType) =
     match commandText, chatType with
-    | "/start", SingleChat -> Some Start
-    | "/changeSkin", _ -> Some SendChangeSkin
-    | _ -> None
+    | "/start", SingleChat -> Ok Start
+    | "/changeSkin", _ -> Ok SendChangeSkin
+    | _ -> sendError "Я не поддерживаю такие комманды"
+
+let getGroupText (botName: string) text =
+    let parts = toWords text
+    let resolvedBotTag = $"@{botName}"
+    let checkBotTag tag = resolvedBotTag = tag
+
+    match parts with
+    | botTag :: rest when checkBotTag botTag -> Ok(join " " rest)
+    | _ -> logError "Group Message has not bot tag"
+
+let resolveMessageText (original: UpdateContext) chatType (message: TMessage) =
+    match message.Text with
+    | Some text ->
+        match chatType with
+        | SingleChat -> Ok text
+        | GroupChat ->
+            match original.Me.Username with
+            | Some botName -> getGroupText botName text
+            | None -> logError "Cant validate group message without botname"
+    | None ->
+        match chatType with
+        | SingleChat -> sendError "Я не поддерживаю такие сообщения"
+        | GroupChat -> logError "Group Message is not for proccessing"
+
+let resolveReplyMessage (message: TMessage) =
+    match message.ReplyToMessage with
+    | Some message -> Ok message
+    | None -> sendError "Чтобы сгенерировать цитату, ответьте на сообщение и тегните меня"
+
+
+let resolveUpdateByMessage
+    repository
+    (original: UpdateContext)
+    (message: TMessage)
+    : Result<ResolvedUpdate, ErrorExternal> =
+    result {
+        let chat = message.Chat
+        let chatId = chat.Id
+        let! chatType = resolveChatType chat
+        let! text = resolveMessageText original chatType message
+        let messageId = message.MessageId
+        let skinNameByChatId = repository.get chatId |> noneIfError
+        let chatSkin = skinByOpionName skinNameByChatId
+        let defaultSkin = chatSkin |> withDefault avrelii
+
+        match text with
+        | HasCommand command ->
+            let! command = resolveCommand command chatType
+            return CommandUpdate(chatId, messageId, command)
+        | _ ->
+            match chatType with
+            | SingleChat ->
+                return
+                    TextUpdate
+                        { skin = defaultSkin
+                          chatId = chatId
+                          replyMessageId = messageId
+                          text = text }
+            | GroupChat ->
+                let! replyMessage = resolveReplyMessage message
+                let! replyText = resolveMessageText original SingleChat replyMessage
+                let selectedSkin = skinByName text |> withDefault defaultSkin
+
+                return
+                    TextUpdate
+                        { skin = selectedSkin
+                          chatId = chatId
+                          replyMessageId = replyMessage.MessageId
+                          text = replyText }
+    }
 
 
 let resolveUpdate repository (context: UpdateContext) : Result<ResolvedUpdate, ErrorExternal> =
-    maybe {
-        match context with
-        | OnCallback query -> return Ok(QueryUpdate query)
-        | OnMessage(message, text) ->
-            let chat = message.Chat
-            let chatId = chat.Id
-            let! chatType = resolveChatType chat
-            let skinNameByChatId = repository.get chatId |> noneIfError
-            let chatSkin = skinByOpionName skinNameByChatId
-            let defaultSkin = chatSkin |> withDefault avrelii
-
-            match text with
-            | HasCommand command ->
-                let! command = resolveCommand command chatType
-                return Ok(CommandUpdate(chatId, message.MessageId, command))
-            | _ ->
-                match chatType with
-                | SingleChat ->
-                    return
-                        Ok(
-                            TextUpdate
-                                { skin = defaultSkin
-                                  chatId = chatId
-                                  text = text
-                                  replyMessageId = message.MessageId }
-                        )
-                | GroupChat _ ->
-                    let! replyMessage = message.ReplyToMessage
-                    let! replyText = replyMessage.Text
-                    let! botName = context.Me.Username
-
-                    match text, botName with
-                    | IsNeedQuote choisenSkin ->
-                        let skin = choisenSkin |> withDefault defaultSkin
-
-                        return
-                            Ok(
-                                TextUpdate
-                                    { skin = skin
-                                      chatId = chatId
-                                      replyMessageId = replyMessage.MessageId
-                                      text = replyText }
-                            )
-                    | _ -> return! None
-        | OnEmpty -> return logError "Cant resolve update"
-    }
-    |> unwrapOptionResult "Missing data while proccess update"
+    match resolveSupportedUpdate context with
+    | Message m -> resolveUpdateByMessage repository context m
+    | CallbackQuery q -> Ok(QueryUpdate q)
+    | _ -> logError "Unsupported update to resolve"
 
 let proccessUpdate repository context : Result<unit, ErrorExternal> =
     result {
@@ -157,7 +180,7 @@ let proccessUpdate repository context : Result<unit, ErrorExternal> =
 
         match update with
         | TextUpdate update -> do! sendQuote context update
-        | CommandUpdate command -> do! proccessCommand context command
+        | CommandUpdate command -> proccessCommand context command
         | QueryUpdate query -> do! proccessQuery repository context query
 
         return ()
@@ -185,7 +208,7 @@ let validateTime date (context: UpdateContext) =
 let validateUpdate config update =
     result {
         do! validateTime config.startDate update
-        return! Ok()
+        return ()
     }
 
 let update botContext update =
