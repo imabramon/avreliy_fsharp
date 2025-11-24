@@ -55,33 +55,6 @@ let skinByOpionName name =
     | Some name -> skinByName name
     | None -> None
 
-
-type SimpleMessage =
-    { id: int64
-      chatId: int64
-      text: string }
-
-type ReplyMessage =
-    { self: SimpleMessage
-      reply: SimpleMessage }
-
-type ResolvedMessage =
-    | SimpleMessage of SimpleMessage
-    | ReplyMessage of ReplyMessage
-
-let (|IsNeedQuote|DontNeed|) (text: string, botName) =
-    let parts = toWords text
-
-    let resolvedBotTag = $"@{botName}"
-    let checkBotTag tag = resolvedBotTag = tag
-
-    match parts with
-    | botTag :: skinName :: [] when checkBotTag botTag ->
-        let skin = skinByName skinName
-        IsNeedQuote skin
-    | botTag :: _ when checkBotTag botTag -> IsNeedQuote None
-    | _ -> DontNeed
-
 let (|HasCommand|HasNoCommand|) (text: string) =
     let parts = toWords text
 
@@ -101,7 +74,7 @@ let getGroupText (botName: string) (text: string) =
     if text.Contains resolvedBotTag then
         Ok(text.Replace(resolvedBotTag, ""))
     else
-        logError "Group messagw without bot tag"
+        logError "Group message without bot tag"
 
 let resolveMessageText (original: UpdateContext) chatType (message: TMessage) =
     match message.Text with
@@ -121,7 +94,6 @@ let resolveReplyMessage (message: TMessage) =
     match message.ReplyToMessage with
     | Some message -> Ok message
     | None -> sendError "Чтобы сгенерировать цитату, ответьте на сообщение и тегните меня"
-
 
 let resolveUpdateByMessage
     repository
@@ -163,7 +135,6 @@ let resolveUpdateByMessage
                           replyMessageId = replyMessage.MessageId
                           text = replyText }
     }
-
 
 let resolveUpdate repository (context: UpdateContext) : Result<ResolvedUpdate, ErrorExternal> =
     match resolveSupportedUpdate context with
@@ -212,22 +183,19 @@ let validateUpdate config update =
 
 type MessageToReply = { chatId: int64; messageId: int64 }
 
-let getFeetbackInfo (update: UpdateContext) =
+let getMessageToReply (update: UpdateContext) =
     match resolveSupportedUpdate update with
     | Message m ->
-        let chatId = m.Chat.Id
-        let messageId = m.MessageId
-
         Some
-            { chatId = chatId
-              messageId = messageId }
+            { chatId = m.Chat.Id
+              messageId = m.MessageId }
     | _ -> None
 
-let giveFeedback context info text =
-    sendMessage context info.chatId info.messageId text
+let giveFeedback context messageToReply text =
+    sendMessage context messageToReply.chatId messageToReply.messageId text
 
 let update botContext update =
-    let feedback = getFeetbackInfo update
+    let messageToReply = getMessageToReply update
 
     match
         result {
@@ -237,6 +205,6 @@ let update botContext update =
     with
     | Ok _ -> ()
     | Error e ->
-        match e, feedback with
-        | PublicError e, Some feedback -> giveFeedback update feedback e.message
+        match e, messageToReply with
+        | PublicError e, Some messageToReply -> giveFeedback update messageToReply e.message
         | _ -> printfn $"Error: {getMessage e}"
