@@ -95,14 +95,13 @@ let resolveCommand commandText (chatType: ResolvedChatType) =
     | "/changeSkin", _ -> Ok SendChangeSkin
     | _ -> sendError "Я не поддерживаю такие комманды"
 
-let getGroupText (botName: string) text =
-    let parts = toWords text
+let getGroupText (botName: string) (text: string) =
     let resolvedBotTag = $"@{botName}"
-    let checkBotTag tag = resolvedBotTag = tag
 
-    match parts with
-    | botTag :: rest when checkBotTag botTag -> Ok(join " " rest)
-    | _ -> logError "Group Message has not bot tag"
+    if text.Contains resolvedBotTag then
+        Ok(text.Replace(resolvedBotTag, ""))
+    else
+        logError "Group messagw without bot tag"
 
 let resolveMessageText (original: UpdateContext) chatType (message: TMessage) =
     match message.Text with
