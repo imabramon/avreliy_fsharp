@@ -5,10 +5,9 @@ open Funogram.Telegram.Bot
 
 open Domain
 open Utils
-open Maybe
 open Handlers
 open Errors
-open Database
+open AvailableSkins
 open SimpleSkins
 open Result
 
@@ -31,28 +30,9 @@ let resolveChatType (chat: TChat) =
     | TChatType.Group -> Ok GroupChat
     | _ -> logError "Unsupported chat type"
 
-let skinByName name =
-    match name with
-    | "аврелий"
-    | "авр"
-    | "Аврелий"
-    | "avrelii" -> Some avrelii
-    | "стетхем"
-    | "Стетхем"
-    | "stetham"
-    | "стет" -> Some stetham
-    | "chad"
-    | "чад"
-    | "Чад"
-    | "Chad" -> Some chad
-    | "Джокер"
-    | "джокер"
-    | "joker" -> Some joker
-    | _ -> None
-
 let skinByOpionName name =
     match name with
-    | Some name -> skinByName name
+    | Some name -> skinByAlias name
     | None -> None
 
 let (|HasCommand|HasNoCommand|) (text: string) =
@@ -72,7 +52,7 @@ let getGroupText (botName: string) (text: string) =
     let resolvedBotTag = $"@{botName}"
 
     if text.Contains resolvedBotTag then
-        Ok(text.Replace(resolvedBotTag, ""))
+        Ok(text.Replace(resolvedBotTag, "").Trim())
     else
         logError "Group message without bot tag"
 
@@ -94,6 +74,11 @@ let resolveReplyMessage (message: TMessage) =
     match message.ReplyToMessage with
     | Some message -> Ok message
     | None -> sendError "Чтобы сгенерировать цитату, ответьте на сообщение и тегните меня"
+
+type MessageToReply = { chatId: int64; messageId: int64 }
+
+let giveFeedback context messageToReply text =
+    sendMessage context messageToReply.chatId messageToReply.messageId text
 
 let resolveUpdateByMessage
     repository
@@ -126,7 +111,19 @@ let resolveUpdateByMessage
             | GroupChat ->
                 let! replyMessage = resolveReplyMessage message
                 let! replyText = resolveMessageText original SingleChat replyMessage
-                let selectedSkin = skinByName text |> withDefault defaultSkin
+                let chosenSkin = skinByAlias text
+
+                do
+                    match chosenSkin with
+                    | None ->
+                        giveFeedback
+                            original
+                            { chatId = chatId
+                              messageId = messageId }
+                            $"Не смог найти скин с именем {text}. Использую установленный скин для чата"
+                    | _ -> ()
+
+                let selectedSkin = chosenSkin |> withDefault defaultSkin
 
                 return
                     TextUpdate
@@ -181,8 +178,6 @@ let validateUpdate config update =
         return ()
     }
 
-type MessageToReply = { chatId: int64; messageId: int64 }
-
 let getMessageToReply (update: UpdateContext) =
     match resolveSupportedUpdate update with
     | Message m ->
@@ -190,9 +185,6 @@ let getMessageToReply (update: UpdateContext) =
             { chatId = m.Chat.Id
               messageId = m.MessageId }
     | _ -> None
-
-let giveFeedback context messageToReply text =
-    sendMessage context messageToReply.chatId messageToReply.messageId text
 
 let update botContext update =
     let messageToReply = getMessageToReply update

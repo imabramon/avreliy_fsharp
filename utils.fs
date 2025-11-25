@@ -25,7 +25,10 @@ let getToken =
 let errorIfNone ifNoneError x =
     match x with
     | Some x -> Ok x
-    | None -> Error ifNoneError
+    | None -> ifNoneError
+
+let sendErrorIfNone text = errorIfNone (sendError text)
+let logErrorIfNone text = errorIfNone (logError text)
 
 let noneIfError x =
     match x with

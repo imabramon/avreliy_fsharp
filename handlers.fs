@@ -9,10 +9,10 @@ open Funogram.Telegram.Types
 open Domain
 open Skin
 open Utils
-open Maybe
-open SimpleSkins
 open Result
 open Errors
+open Localization
+open AvailableSkins
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -93,13 +93,14 @@ let SET_SKIN = "setSkin"
 
 let createChaneSkinMarkup skinsInfo =
     skinsInfo
-    |> Array.map (fun skinInfo ->
-        [| InlineKeyboardButton.Create(skinInfo.publicName, callbackData = $"{SET_SKIN},{skinInfo.dbValue}") |])
+    |> List.map (fun skinInfo ->
+        [| InlineKeyboardButton.Create(to_ru skinInfo.localization, callbackData = $"{SET_SKIN},{skinInfo.name}") |])
+    |> List.toArray
     |> TInlineKeyboardMarkup.Create
     |> InlineKeyboardMarkup
 
 let sendChangeSkinMessage context chatId messageId =
-    availableSkins
+    availabelSkins
     |> createChaneSkinMarkup
     |> sendMessageMarkup context chatId messageId "Доступные скины для цитат:"
 
@@ -131,8 +132,10 @@ let proccessQuery repository context (query: TCallbackQuery) =
 
         match parsed with
         | query :: skinName :: _ when query = SET_SKIN ->
+            let! skinInfo = skinByName skinName |> sendErrorIfNone "Не смог сменить скин. Неизвестное имя"
             do! repository.add chatId (Some skinName)
-            printfn $"Change skin to {skinName} success"
-            sendMessage context chatId replyId "Смена скина произошла успешно"
+            let newSkinName = to_ru skinInfo.localization
+            sendMessage context chatId replyId $"Смена скина произошла успешно. Новый скин для чата - {newSkinName}"
+            return ()
         | _ -> return! logError "Unsupported query data"
     }
