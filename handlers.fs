@@ -13,6 +13,8 @@ open Result
 open Errors
 open Localization
 open AvailableSkins
+open Commands
+open Text
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -75,12 +77,6 @@ let sendMessage context chatId replyId message =
     |> api context.Config
     |> asyncStart
 
-type Command =
-    | Start
-    | SendChangeSkin
-
-type CommandUpdate = Id * Id * Command
-
 let sendMessageMarkup context chatId replyId message markup =
     let req = Funogram.Telegram.Api.sendMessageMarkup chatId message markup
 
@@ -108,7 +104,10 @@ let proccessCommand context (command: CommandUpdate) =
     let chatId, messageId, command = command
 
     match command with
-    | Start -> sendMessage context chatId messageId "Привет я бот цитатник"
+    | Start ->
+        mainCommandsDescription context.Me.Username SingleChat
+        |> singleStartMessage
+        |> sendMessage context chatId messageId
     | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
 
 let resolveMessage message =
@@ -139,3 +138,13 @@ let proccessQuery repository context (query: TCallbackQuery) =
             return ()
         | _ -> return! logError "Unsupported query data"
     }
+
+type AddToChatUpdate =
+    { chatId: int64
+      chatName: string
+      botName: string }
+
+let proccessAddToChat (original: UpdateContext) (update: AddToChatUpdate) =
+    mainCommandsDescription update.botName GroupChat
+    |> groupStartMessage update.botName
+    |> sendMessage original update.chatId 0

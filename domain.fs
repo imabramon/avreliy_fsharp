@@ -23,6 +23,7 @@ type SupportedUpdates =
     | ChannelPost of TChannelPost
     | Poll of TPoll
     | CallbackQuery of TCallbackQuery
+    | AddToChat of TChatMember
     | UnsupportedUpdate
 
 let resolveSupportedUpdate (context: UpdateContext) : SupportedUpdates =
@@ -31,13 +32,15 @@ let resolveSupportedUpdate (context: UpdateContext) : SupportedUpdates =
         context.Update.ChatMember,
         context.Update.ChannelPost,
         context.Update.Poll,
-        context.Update.CallbackQuery
+        context.Update.CallbackQuery,
+        context.Update.MyChatMember
     with
-    | (Some m, _, _, _, _) -> Message m
-    | (_, Some cm, _, _, _) -> ChatMember cm
-    | (_, _, Some cp, _, _) -> ChannelPost cp
-    | (_, _, _, Some p, _) -> Poll p
-    | (_, _, _, _, Some cq) -> CallbackQuery cq
+    | (Some m, _, _, _, _, _) -> Message m
+    | (_, Some cm, _, _, _, _) -> ChatMember cm
+    | (_, _, Some cp, _, _, _) -> ChannelPost cp
+    | (_, _, _, Some p, _, _) -> Poll p
+    | (_, _, _, _, Some cq, _) -> CallbackQuery cq
+    | (_, _, _, _, _, Some mm) -> AddToChat mm
     | _ -> UnsupportedUpdate
 
 let getTime update =
@@ -45,6 +48,7 @@ let getTime update =
     | Message m -> Some(m.Date.ToUniversalTime())
     | ChatMember cm -> Some(cm.Date.ToUniversalTime())
     | ChannelPost cp -> Some(cp.Date.ToUniversalTime())
+    | AddToChat mm -> Some(mm.Date.ToUniversalTime())
     | _ -> None
 
 type ChatRepository<'TError> =
@@ -56,3 +60,7 @@ type ValidationConfig = { startDate: DateTime }
 type BotContext<'TError> =
     { repository: ChatRepository<'TError>
       validation: ValidationConfig }
+
+type ResolvedChatType =
+    | SingleChat
+    | GroupChat

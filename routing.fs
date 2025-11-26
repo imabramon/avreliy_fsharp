@@ -10,15 +10,13 @@ open Errors
 open AvailableSkins
 open SimpleSkins
 open Result
+open Commands
 
 type ResolvedUpdate =
     | TextUpdate of TextUpdate
     | CommandUpdate of CommandUpdate
     | QueryUpdate of TCallbackQuery
-
-type ResolvedChatType =
-    | SingleChat
-    | GroupChat
+    | AddToChatUpdate of AddToChatUpdate
 
 let resolveChatType (chat: TChat) =
     let chatType = chat.Type
@@ -34,19 +32,6 @@ let skinByOpionName name =
     match name with
     | Some name -> skinByAlias name
     | None -> None
-
-let (|HasCommand|HasNoCommand|) (text: string) =
-    let parts = toWords text
-
-    match parts with
-    | first :: _ when first.StartsWith '/' -> HasCommand first
-    | _ -> HasNoCommand
-
-let resolveCommand commandText (chatType: ResolvedChatType) =
-    match commandText, chatType with
-    | "/start", SingleChat -> Ok Start
-    | "/changeSkin", _ -> Ok SendChangeSkin
-    | _ -> sendError "Я не поддерживаю такие комманды"
 
 let getGroupText (botName: string) (text: string) =
     let resolvedBotTag = $"@{botName}"
@@ -133,10 +118,21 @@ let resolveUpdateByMessage
                           text = replyText }
     }
 
+
 let resolveUpdate repository (context: UpdateContext) : Result<ResolvedUpdate, ErrorExternal> =
     match resolveSupportedUpdate context with
     | Message m -> resolveUpdateByMessage repository context m
     | CallbackQuery q -> Ok(QueryUpdate q)
+    | AddToChat addToChat ->
+        let chatId = addToChat.Chat.Id
+        let chatName = addToChat.Chat.Title |> withDefault "Чат"
+
+        Ok(
+            AddToChatUpdate
+                { chatId = chatId
+                  chatName = chatName
+                  botName = context.Me.Username |> withDefault "@botName" }
+        )
     | _ -> logError "Unsupported update to resolve"
 
 let proccessUpdate repository context : Result<unit, ErrorExternal> =
@@ -146,11 +142,10 @@ let proccessUpdate repository context : Result<unit, ErrorExternal> =
         let! update = resolveUpdate repository context
 
         match update with
-        | TextUpdate update -> do! sendQuote context update
-        | CommandUpdate command -> proccessCommand context command
-        | QueryUpdate query -> do! proccessQuery repository context query
-
-        return ()
+        | TextUpdate update -> return! sendQuote context update
+        | CommandUpdate command -> return proccessCommand context command
+        | QueryUpdate query -> return! proccessQuery repository context query
+        | AddToChatUpdate addToChat -> return proccessAddToChat context addToChat
     }
 
 let checkTime (start: DateTime) update =
