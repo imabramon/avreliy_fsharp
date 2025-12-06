@@ -149,7 +149,7 @@ let proccessUpdate repository context : Result<unit, ErrorExternal> =
 
         match update with
         | TextUpdate update -> return! sendQuote context update
-        | CommandUpdate command -> return proccessCommand context command
+        | CommandUpdate command -> return! proccessCommand context command
         | QueryUpdate query -> return! proccessQuery repository context query
         | AddToChatUpdate addToChat -> return proccessAddToChat context addToChat
     }

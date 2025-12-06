@@ -99,8 +99,14 @@ let logIfError (result: Async<Result<'a, ApiResponseError>>) =
 let asyncStart req =
     req |> logIfError |> Async.Ignore |> Async.Start
 
-let unwrapOptionResult emptyMessage x =
-    match x with
-    | Some(Ok x) -> Ok x
-    | Some(Error e) -> Error e
-    | None -> logError emptyMessage
+let resultAny (error: 'b) (list: Result<'a, 'b> list) =
+    let results =
+        list
+        |> List.collect (fun res ->
+            match res with
+            | Ok o -> [ o ]
+            | Error _ -> [])
+
+    match results.Length with
+    | x when x > 0 -> Ok results
+    | _ -> Error error

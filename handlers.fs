@@ -24,19 +24,35 @@ let getInputFile path =
     let fileStream = new FileStream(path, FileMode.Open, FileAccess.Read)
     InputFile.File(path, fileStream)
 
-let dispose (f: Funogram.Telegram.Types.InputFile) result =
-    async {
-        let! res = result
+let getInputFileAsBytes path =
+    let bytes = File.ReadAllBytes(path)
+    let fileName = Path.GetFileName(path)
+    FileBytes(fileName, bytes)
 
-        match f with
-        | InputFile.File(p, f) ->
-            match File.Exists p with
-            | true -> File.Delete p
-            | _ -> ()
-
-            f.Dispose()
+let dispose (f: Funogram.Telegram.Types.InputFile) =
+    match f with
+    | InputFile.File(p, f) ->
+        match File.Exists p with
+        | true -> File.Delete p
         | _ -> ()
 
+        f.Dispose()
+    | FileBytes(p, _) ->
+        let p = Path.Combine(Environment.CurrentDirectory, "./temp/" + p)
+        File.Delete p
+    | _ -> ()
+
+let disposeFile (f: Funogram.Telegram.Types.InputFile) result =
+    async {
+        let! res = result
+        dispose f
+        return res
+    }
+
+let disposeFileList (f: Funogram.Telegram.Types.InputFile list) result =
+    async {
+        let! res = result
+        f |> List.iter dispose
         return res
     }
 
@@ -54,18 +70,56 @@ let sendPhoto (update: TextUpdate) chatId inputFile =
     { sendler with
         ReplyParameters = Some replyInfo }
 
-let sendQuote context (update: TextUpdate) =
+let fileToMedia (inputFile: InputFile) =
+    InputMedia.Photo(InputMediaPhoto.Create("photo", inputFile))
+
+let sendMediaGroup chatId messageId inputFiles =
+    let media = inputFiles |> List.map fileToMedia |> List.toArray
+    let sendler = Funogram.Telegram.Api.sendMediaGroup chatId media
+    let chatId = Int chatId
+    let replyInfo = ReplyParameters.Create(messageId, chatId)
+
+    { sendler with
+        ReplyParameters = Some replyInfo }
+
+let generateQuote inputFileGetter skin text =
     result {
         let imagePath = getImagePath ()
-        let textUpdate = update
 
-        do! generateQuote imagePath update.skin textUpdate.text
+        do! generateQuote imagePath skin text
 
-        let inputFile = getInputFile imagePath
+        return inputFileGetter imagePath
+    }
 
-        sendPhoto update textUpdate.chatId inputFile
+let sendExamples context chatId messageId =
+    result {
+        let generateQuote = generateQuote getInputFileAsBytes
+        let resultAny = resultAny (publicError "Не вышло сгененрировать ни одной цитаты")
+
+        let! files =
+            availabelSkins
+            |> List.map (fun info ->
+                let alias = join ", " info.alias
+                generateQuote info.skin $"Доступные алиасы: {alias}")
+            |> resultAny
+
+        sendMediaGroup chatId messageId files
         |> api context.Config
-        |> dispose inputFile
+        |> disposeFileList files
+        |> asyncStart
+
+        return ()
+    }
+
+
+let sendQuote context (update: TextUpdate) =
+    result {
+        let generateQuote = generateQuote getInputFileAsBytes
+        let! inputFile = generateQuote update.skin update.text
+
+        sendPhoto update update.chatId inputFile
+        |> api context.Config
+        |> disposeFile inputFile
         |> asyncStart
 
         return ()
@@ -106,23 +160,33 @@ let sendChangeSkinMessage context chatId messageId =
     |> sendMessageMarkup context chatId messageId "Доступные скины для цитат:"
 
 let proccessCommand context (update: CommandUpdate) =
-    let chatId = update.chatId
-    let messageId = update.messageId
-    let command = update.command
-    let chatType = update.chatType
-    let name = context.Me.Username |> withDefault "botName"
+    result {
+        let chatId = update.chatId
+        let messageId = update.messageId
+        let command = update.command
+        let chatType = update.chatType
+        let name = context.Me.Username |> withDefault "botName"
 
-    match command with
-    | Start ->
-        startCommandsDescription name SingleChat
-        |> singleStartMessage
-        |> replyToMessage context chatId messageId
-    | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
-    | Help ->
-        helpCommandsDescription name chatType
-        |> getHelpText
-        |> replyToMessage context chatId messageId
-    | Examples -> replyToMessage context chatId messageId "Комманда /examples"
+        match command with
+        | Start ->
+            startCommandsDescription name SingleChat
+            |> singleStartMessage
+            |> replyToMessage context chatId messageId
+
+            return ()
+        | SendChangeSkin ->
+            sendChangeSkinMessage context chatId messageId
+            return ()
+        | Help ->
+            helpCommandsDescription name chatType
+            |> getHelpText
+            |> replyToMessage context chatId messageId
+
+            return ()
+        | Examples ->
+            do! sendExamples context chatId messageId
+            return ()
+    }
 
 let resolveMessage message =
     match message with
