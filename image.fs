@@ -3,10 +3,11 @@ module Image
 open System
 open SixLabors.Fonts
 open SixLabors.ImageSharp
-open SixLabors.ImageSharp.Drawing
 open SixLabors.ImageSharp.Drawing.Processing
 open SixLabors.ImageSharp.Processing
+
 open Utils
+open Errors
 
 type OriginPosition =
     | Centred
@@ -99,7 +100,7 @@ let getImage (imagePath: string) =
         let image = Image.Load(imagePath)
         Ok image
     with e ->
-        Error e.Message
+        logError e.Message
 
 let getFontFamily (fontPath: string) =
     let fontCollection = FontCollection()
@@ -108,7 +109,7 @@ let getFontFamily (fontPath: string) =
         let fontFamily = fontCollection.Add(fontPath)
         Ok fontFamily
     with e ->
-        Error e.Message
+        logError e.Message
 
 let pointOf (origin: Origin) (rect: float32 * float32) =
     let x, y = origin.origin.X, origin.origin.Y

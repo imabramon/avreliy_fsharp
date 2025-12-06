@@ -1,7 +1,9 @@
 module Result
 
-type ResultBilder() =
-    member _.Zero() = Error "Nothing has returned"
+open Errors
+
+type ResultBilder<'TError>(zeroError: 'TError) =
+    member _.Zero() = Error zeroError
 
     member _.Bind(x, f) =
         match x with
@@ -58,4 +60,4 @@ type ResultBilder() =
 
         loop ()
 
-let result = ResultBilder()
+let result = ResultBilder(PrivateError { message = "Nothing was returned" })

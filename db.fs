@@ -1,6 +1,8 @@
 module Database
 
 open Npgsql.FSharp
+
+open Domain
 open Utils
 open Result
 
@@ -62,10 +64,6 @@ let getChatInfo connection chatId =
         |> Sql.parameters [ "@chatId", Sql.int64 chatId ]
         |> Sql.executeRow (fun read -> read.textOrNone P_SKIN_NAME))
     |> toResult
-
-type ChatRepository =
-    { add: int64 -> string option -> Result<unit, string>
-      get: int64 -> Result<string option, string> }
 
 let initDb () =
     result {
