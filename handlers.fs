@@ -110,10 +110,12 @@ let proccessCommand context (command: CommandUpdate) =
 
     match command with
     | Start ->
-        mainCommandsDescription context.Me.Username SingleChat
+        startCommandsDescription context.Me.Username SingleChat
         |> singleStartMessage
         |> replyToMessage context chatId messageId
     | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
+    | Help -> replyToMessage context chatId messageId "Комманда /help"
+    | Examples -> replyToMessage context chatId messageId "Комманда /examples"
 
 let resolveMessage message =
     match message with
@@ -150,6 +152,6 @@ type AddToChatUpdate =
       botName: string }
 
 let proccessAddToChat (original: UpdateContext) (update: AddToChatUpdate) =
-    mainCommandsDescription update.botName GroupChat
+    startCommandsDescription update.botName GroupChat
     |> groupStartMessage update.botName
     |> sendMessage original update.chatId
