@@ -72,7 +72,12 @@ let sendQuote context (update: TextUpdate) =
     }
 
 
-let sendMessage context chatId replyId message =
+let replyToMessage context chatId replyId message =
+    Funogram.Telegram.Api.sendMessageReply chatId message replyId
+    |> api context.Config
+    |> asyncStart
+
+let sendMessage context chatId message =
     Funogram.Telegram.Api.sendMessage chatId message
     |> api context.Config
     |> asyncStart
@@ -107,7 +112,7 @@ let proccessCommand context (command: CommandUpdate) =
     | Start ->
         mainCommandsDescription context.Me.Username SingleChat
         |> singleStartMessage
-        |> sendMessage context chatId messageId
+        |> replyToMessage context chatId messageId
     | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
 
 let resolveMessage message =
@@ -134,7 +139,7 @@ let proccessQuery repository context (query: TCallbackQuery) =
             let! skinInfo = skinByName skinName |> sendErrorIfNone "Не смог сменить скин. Неизвестное имя"
             do! repository.add chatId (Some skinName)
             let newSkinName = to_ru skinInfo.localization
-            sendMessage context chatId replyId $"Смена скина произошла успешно. Новый скин для чата - {newSkinName}"
+            replyToMessage context chatId replyId $"Смена скина произошла успешно. Новый скин для чата - {newSkinName}"
             return ()
         | _ -> return! logError "Unsupported query data"
     }
@@ -147,4 +152,4 @@ type AddToChatUpdate =
 let proccessAddToChat (original: UpdateContext) (update: AddToChatUpdate) =
     mainCommandsDescription update.botName GroupChat
     |> groupStartMessage update.botName
-    |> sendMessage original update.chatId 0
+    |> sendMessage original update.chatId

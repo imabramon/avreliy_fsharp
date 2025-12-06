@@ -63,7 +63,7 @@ let resolveReplyMessage (message: TMessage) =
 type MessageToReply = { chatId: int64; messageId: int64 }
 
 let giveFeedback context messageToReply text =
-    sendMessage context messageToReply.chatId messageToReply.messageId text
+    replyToMessage context messageToReply.chatId messageToReply.messageId text
 
 let resolveUpdateByMessage
     repository
