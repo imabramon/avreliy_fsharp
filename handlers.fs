@@ -105,16 +105,23 @@ let sendChangeSkinMessage context chatId messageId =
     |> createChaneSkinMarkup
     |> sendMessageMarkup context chatId messageId "Доступные скины для цитат:"
 
-let proccessCommand context (command: CommandUpdate) =
-    let chatId, messageId, command = command
+let proccessCommand context (update: CommandUpdate) =
+    let chatId = update.chatId
+    let messageId = update.messageId
+    let command = update.command
+    let chatType = update.chatType
+    let name = context.Me.Username |> withDefault "botName"
 
     match command with
     | Start ->
-        startCommandsDescription context.Me.Username SingleChat
+        startCommandsDescription name SingleChat
         |> singleStartMessage
         |> replyToMessage context chatId messageId
     | SendChangeSkin -> sendChangeSkinMessage context chatId messageId
-    | Help -> replyToMessage context chatId messageId "Комманда /help"
+    | Help ->
+        helpCommandsDescription name chatType
+        |> getHelpText
+        |> replyToMessage context chatId messageId
     | Examples -> replyToMessage context chatId messageId "Комманда /examples"
 
 let resolveMessage message =

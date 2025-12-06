@@ -12,7 +12,11 @@ type Command =
     | Help
     | Examples
 
-type CommandUpdate = Id * Id * Command
+type CommandUpdate =
+    { chatId: Id
+      messageId: Id
+      command: Command
+      chatType: ResolvedChatType }
 
 type CommandInfo =
     { text: string
@@ -43,10 +47,10 @@ let commands =
         description = ru "Список всех комманд"
         command = Help
         supportedChatType = all
-        showInHelp = true
+        showInHelp = false
         showInStart = false }
       { text = "examples"
-        description = ru "Примеры фоны для цитат"
+        description = ru "Примеры фононов для цитат"
         command = Examples
         supportedChatType = all
         showInHelp = true
@@ -86,6 +90,7 @@ let formatCommand (text: string) =
     | false -> text
 
 let useStartCommands command = command.showInStart
+let useHelpCommands command = command.showInHelp
 
 let useSelectedChad chatType command =
     command.supportedChatType |> List.contains chatType
@@ -98,16 +103,23 @@ let commandText chatType botName command =
     let description = to_ru command.description
     $"{text} - {description}"
 
-let startCommandsDescription botName chatType =
+let getCommandsDescription filter (botName: string) chatType =
     let useChatType = useSelectedChad chatType
 
     commands
     |> List.filter useChatType
-    |> List.filter useStartCommands
+    |> List.filter filter
     |> List.map (fun command -> commandText chatType botName command)
     |> join "\n"
+
+let startCommandsDescription = getCommandsDescription useStartCommands
+let helpCommandsDescription = getCommandsDescription useHelpCommands
 
 let commandInfoToCompletion chatType botName (id: int) command =
     let id = id.ToString()
     let content = InputTextMessageContent.Create(commandText chatType botName command)
     InlineQueryResultArticle.Create("Command", id, to_ru command.description, TextMessageContent content)
+
+let getHelpText commands =
+    $"""Список всех комманд:
+{commands}"""

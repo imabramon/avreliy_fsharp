@@ -83,7 +83,13 @@ let resolveUpdateByMessage
         match text with
         | HasCommand command ->
             let! command = resolveCommand command chatType
-            return CommandUpdate(chatId, messageId, command)
+
+            return
+                CommandUpdate
+                    { chatId = chatId
+                      messageId = messageId
+                      command = command
+                      chatType = chatType }
         | _ ->
             match chatType with
             | SingleChat ->
