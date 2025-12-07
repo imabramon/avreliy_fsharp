@@ -62,13 +62,14 @@ type TextUpdate =
       text: string
       replyMessageId: Id }
 
-let sendPhoto (update: TextUpdate) chatId inputFile =
+let sendPhoto (update: TextUpdate) chatId inputFile text =
     let sendler = Funogram.Telegram.Api.sendPhoto chatId inputFile ""
     let chatId = Int chatId
     let replyInfo = ReplyParameters.Create(update.replyMessageId, chatId)
 
     { sendler with
-        ReplyParameters = Some replyInfo }
+        ReplyParameters = Some replyInfo
+        Caption = Some text }
 
 let fileToMedia (inputFile: InputFile) =
     InputMedia.Photo(InputMediaPhoto.Create("photo", inputFile))
@@ -114,10 +115,12 @@ let sendExamples context chatId messageId =
 
 let sendQuote context (update: TextUpdate) =
     result {
-        let generateQuote = generateQuote getInputFileAsBytes
+        let generateQuote = generateQuote getInputFile
         let! inputFile = generateQuote update.skin update.text
+        let botName = context.Me.Username |> withDefault "botName"
+        let caption = $"Спасибо, что пользуйетесь @{botName}"
 
-        sendPhoto update update.chatId inputFile
+        sendPhoto update update.chatId inputFile caption
         |> api context.Config
         |> disposeFile inputFile
         |> asyncStart
