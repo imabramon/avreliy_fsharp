@@ -199,6 +199,11 @@ let getQueryData (query: TCallbackQuery) =
     | Some data -> Ok data
     | None -> logError "Empty query"
 
+let answerCallbackQuery id context =
+    Funogram.Telegram.Api.answerCallbackQuery id "" false "" 0
+    |> api context.Config
+    |> asyncStart
+
 let proccessQuery repository context (query: TCallbackQuery) =
     result {
         let! data = getQueryData query
@@ -206,6 +211,7 @@ let proccessQuery repository context (query: TCallbackQuery) =
         let chatId = message.Chat.Id
         let replyId = message.MessageId
         let parsed = split "," data
+        let queryId = query.Id
 
         match parsed with
         | query :: skinName :: _ when query = SET_SKIN ->
@@ -213,6 +219,7 @@ let proccessQuery repository context (query: TCallbackQuery) =
             do! repository.add chatId (Some skinName)
             let newSkinName = to_ru skinInfo.localization
             replyToMessage context chatId replyId $"Смена скина произошла успешно. Новый скин для чата - {newSkinName}"
+            answerCallbackQuery queryId context
             return ()
         | _ -> return! logError "Unsupported query data"
     }
