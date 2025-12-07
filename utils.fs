@@ -4,12 +4,14 @@ open System
 open DotNetEnv
 open Funogram.Types
 
+open Errors
+
 Env.Load() |> ignore
 
 
 let getEnvVariable name =
     match Env.GetString(name) with
-    | null -> Error $"Environment variable '{name}' is not defined"
+    | null -> logError $"Environment variable '{name}' is not defined"
     | value -> Ok value
 
 let getToken =
@@ -18,12 +20,15 @@ let getToken =
     match mode with
     | "prod" -> getEnvVariable "TOKEN"
     | "dev" -> getEnvVariable "TOKEN_DEV"
-    | _ -> Error "Mode is not defined. Cant get Token"
+    | _ -> logError "Mode is not defined. Cant get Token"
 
 let errorIfNone ifNoneError x =
     match x with
     | Some x -> Ok x
-    | None -> Error ifNoneError
+    | None -> ifNoneError
+
+let sendErrorIfNone text = errorIfNone (sendError text)
+let logErrorIfNone text = errorIfNone (logError text)
 
 let noneIfError x =
     match x with
@@ -65,15 +70,18 @@ type pair<'T> = 'T * 'T
 
 let append arr elem = Array.append arr [| elem |]
 
-let toResult fn =
+let toResult fn : Result<'a, ErrorExternal> =
     try
         Ok(fn ())
     with e ->
-        Error e.Message
+        logError e.Message
 
 let split (separator: string) (str: string) =
     str.Split([| separator |], StringSplitOptions.RemoveEmptyEntries)
     |> Array.toList
+
+let join separator strs =
+    strs |> List.toArray |> String.concat separator
 
 let toWords str = split " " str
 
@@ -90,3 +98,15 @@ let logIfError (result: Async<Result<'a, ApiResponseError>>) =
 
 let asyncStart req =
     req |> logIfError |> Async.Ignore |> Async.Start
+
+let resultAny (error: 'b) (list: Result<'a, 'b> list) =
+    let results =
+        list
+        |> List.collect (fun res ->
+            match res with
+            | Ok o -> [ o ]
+            | Error _ -> [])
+
+    match results.Length with
+    | x when x > 0 -> Ok results
+    | _ -> Error error

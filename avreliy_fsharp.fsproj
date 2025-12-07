@@ -11,15 +11,15 @@
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup><Compile Include="localization.fs" /><Compile Include="errors.fs" />
     <Compile Include="result.fs" />
     <Compile Include="maybe.fs" />
     <Compile Include="utils.fs" />
     <Compile Include="domain.fs" />
     <Compile Include="db.fs" />
-    <Compile Include="image.fs" />
+    <Compile Include="image.fs" /><Compile Include="text.fs" />
     <Compile Include="skin.fs" />
-    <Compile Include="simpleSkins.fs" />
+    <Compile Include="simpleSkins.fs" /><Compile Include="availableSkins.fs" /><Compile Include="commands.fs" />
     <Compile Include="handlers.fs" /><Compile Include="routing.fs" />
     
     <Compile Include="Program.fs" />
