@@ -17,7 +17,7 @@ let getConnectionString () =
         let! user = getEnvVariable "DB_USER"
         let! password = getEnvVariable "DB_PASSWORD"
 
-        return $"Host={host};Database={name};Username={user};Password={password};SslMode=Prefer"
+        return $"Host={host};Database={name};Username={user};Password={password}"
     }
 
 let connect str =
