@@ -110,3 +110,6 @@ let resultAny (error: 'b) (list: Result<'a, 'b> list) =
     match results.Length with
     | x when x > 0 -> Ok results
     | _ -> Error error
+
+let pickRandom (list: 'a list) =
+    list |> List.item (Random().Next(list.Length))

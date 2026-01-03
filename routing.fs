@@ -105,8 +105,9 @@ let resolveUpdateByMessage
                 let chosenSkin = skinByAlias text
 
                 do
-                    match chosenSkin with
-                    | None ->
+                    match chosenSkin, text with
+                    | None, "" -> ()
+                    | None, _ ->
                         giveFeedback
                             original
                             { chatId = chatId

@@ -18,7 +18,7 @@
     <Compile Include="domain.fs" />
     <Compile Include="db.fs" />
     <Compile Include="image.fs" /><Compile Include="text.fs" />
-    <Compile Include="skin.fs" />
+    <Compile Include="skin.fs" /><Compile Include="skinHelpers.fs" />
     <Compile Include="simpleSkins.fs" /><Compile Include="availableSkins.fs" /><Compile Include="commands.fs" />
     <Compile Include="handlers.fs" /><Compile Include="routing.fs" />
     
