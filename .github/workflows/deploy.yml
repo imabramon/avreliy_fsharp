@@ -61,9 +61,11 @@ jobs:
         script: |
           cd apps/avrelii
           docker-compose down --rmi all --volumes --remove-orphans || true
+          docker rmi avrelii_app:latest 2>/dev/null || true
           docker system prune -f
           docker-compose build --no-cache --pull
-          docker-compose up -d
+          docker-compose up -d --force-recreate --remove-orphans
+          sleep 5
           docker-compose ps
           docker-compose logs --tail=50
           docker image prune -f   
