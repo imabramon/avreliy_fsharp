@@ -91,3 +91,5 @@ let simpleSkin skinInfo text =
             { background = backgroundPath
               draw = addAuthorDraw skinInfo.author resolvedRect style baseDraws }
     }
+
+type PrepareText = string -> string

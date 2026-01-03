@@ -3,6 +3,7 @@ module AvailableSkins
 open Skin
 open SimpleSkins
 open Localization
+open SkinHelpers
 
 let avreliiInfo =
     { name = "averlii"
@@ -28,7 +29,15 @@ let jokerInfo =
       skin = joker
       localization = ru "Джокер" }
 
-let availabelSkins = [ avreliiInfo; chadInfo; stethamInfo; jokerInfo ]
+let pepeWords = [ "Шнейне"; "Фа"; "Втфа"; "Пепе" ]
+
+let pepeInfo =
+    { name = "pepe"
+      alias = [ "pepe"; "пепе"; "ганвест"; "Ганвест" ]
+      skin = addRandomWords 3 pepeWords pepe
+      localization = ru "Джокер" }
+
+let availabelSkins = [ avreliiInfo; chadInfo; stethamInfo; jokerInfo; pepeInfo ]
 
 let infoByAlias =
     availabelSkins
