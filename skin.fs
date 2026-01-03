@@ -28,12 +28,14 @@ type SimpleSkinInfoV2 =
 type SkinContext =
     { authorName: string
       avatarPath: string
-      textToQuote: string }
+      textToQuote: string
+      authorId: int64 }
 
 let defaultSkinContext =
     { authorName = "Неизвестен"
       avatarPath = "./assets/undefined.png"
-      textToQuote = "Lorem ipsum и т.д" }
+      textToQuote = "Lorem ipsum и т.д"
+      authorId = 0 }
 
 let justText text =
     { defaultSkinContext with
@@ -108,6 +110,7 @@ let simpleSkin skinInfo context =
 
 let selfSkin (context: SkinContext) =
     result {
+        printfn $"user id: {context.avatarPath}"
         let color = Color.White
 
         let rect =

@@ -276,3 +276,43 @@ let getUserAvatar id context : Async<string option> =
             return None
 
     }
+
+type MessageToReply = { chatId: int64; messageId: int64 }
+
+let giveFeedback context messageToReply text =
+    replyToMessage context messageToReply.chatId messageToReply.messageId text
+
+let useFeedback pubCheck pubFn privFn fn =
+    match result { do! fn () } with
+    | Ok _ -> ()
+    | Error e ->
+        match e, pubCheck () with
+        | PublicError e, Some context -> pubFn e context
+        | _ -> privFn e
+
+let getFeedbackSendler update e messageToReply =
+    giveFeedback update messageToReply e.message
+
+let printError e = printfn $"Error: {getMessage e}"
+
+let proccessTextUpdate messageToReply (update: TextUpdate) context =
+    async {
+        let! avatarPathOption = getUserAvatar update.context.authorId context
+        let avatarPath = avatarPathOption |> withDefault ""
+
+        let update =
+            { update with
+                context =
+                    { update.context with
+                        avatarPath = avatarPath } }
+
+        let proccessUpdate () = result { do! sendQuote context update }
+        let hasMessageToReply () = messageToReply
+
+        proccessUpdate
+        |> useFeedback hasMessageToReply (getFeedbackSendler context) printError
+
+        return ()
+    }
+    |> Async.Ignore
+    |> Async.Start

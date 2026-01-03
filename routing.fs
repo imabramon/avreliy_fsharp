@@ -61,15 +61,15 @@ let resolveReplyMessage (message: TMessage) =
     | Some message -> Ok message
     | None -> sendError "Чтобы сгенерировать цитату, ответьте на сообщение и тегните меня"
 
-type MessageToReply = { chatId: int64; messageId: int64 }
-
-let giveFeedback context messageToReply text =
-    replyToMessage context messageToReply.chatId messageToReply.messageId text
-
 let resolveAuthor (message: TMessage) =
     match message.From with
     | Some user -> (user.FirstName + " " + (user.LastName |> withDefault " ")).Trim()
     | None -> "Неизвестен"
+
+let resolveAuthorId (message: TMessage) =
+    match message.From with
+    | Some user -> user.Id
+    | None -> 0
 
 let resolveUpdateByMessage
     repository
@@ -101,6 +101,7 @@ let resolveUpdateByMessage
             | SingleChat ->
                 let context =
                     { defaultSkinContext with
+                        authorId = resolveAuthorId message
                         authorName = resolveAuthor message
                         textToQuote = text }
 
@@ -130,6 +131,7 @@ let resolveUpdateByMessage
 
                 let context =
                     { defaultSkinContext with
+                        authorId = resolveAuthorId replyMessage
                         authorName = resolveAuthor replyMessage
                         textToQuote = replyText }
 
@@ -158,14 +160,16 @@ let resolveUpdate repository (context: UpdateContext) : Result<ResolvedUpdate, E
         )
     | _ -> logError "Unsupported update to resolve"
 
-let proccessUpdate repository context : Result<unit, ErrorExternal> =
+let proccessUpdate messageToReply repository context : Result<unit, ErrorExternal> =
     result {
         printfn $"Get update: {context.Update.UpdateId}"
 
         let! update = resolveUpdate repository context
 
         match update with
-        | TextUpdate update -> return! sendQuote context update
+        | TextUpdate update ->
+            proccessTextUpdate messageToReply update context
+            return ()
         | CommandUpdate command -> return! proccessCommand context command
         | QueryUpdate query -> return! proccessQuery repository context query
         | AddToChatUpdate addToChat -> return proccessAddToChat context addToChat
@@ -204,13 +208,28 @@ let getMessageToReply (update: UpdateContext) =
               messageId = m.MessageId }
     | _ -> None
 
+let getProccessUpdate messageToReply botContext update () =
+    result {
+        do! validateUpdate botContext.validation update
+        do! proccessUpdate messageToReply botContext.repository update
+    }
+
 let update botContext update =
+    let messageToReply = getMessageToReply update
+    let proccessUpdate = getProccessUpdate messageToReply botContext update
+    let hasMessageToReply () = messageToReply
+
+    proccessUpdate
+    |> useFeedback hasMessageToReply (getFeedbackSendler update) printError
+
+
+let update2 botContext update =
     let messageToReply = getMessageToReply update
 
     match
         result {
             do! validateUpdate botContext.validation update
-            do! proccessUpdate botContext.repository update
+            do! proccessUpdate messageToReply botContext.repository update
         }
     with
     | Ok _ -> ()
