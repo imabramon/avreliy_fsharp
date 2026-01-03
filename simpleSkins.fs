@@ -43,3 +43,12 @@ let joker =
               size = 680f, 515f }
           author = Some { name = "Джокер"; offset = 184f }
           color = Color.White }
+
+let pepe =
+    simpleSkin
+        { backgroundPath = "./assets/pepe.png"
+          quoteRect =
+            { origin = centredIn 890f 360f
+              size = 680f, 515f }
+          author = Some { name = "Ганвест"; offset = 176f }
+          color = Color.White }
