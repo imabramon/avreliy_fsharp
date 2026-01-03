@@ -57,9 +57,9 @@ let disposeFileList (f: Funogram.Telegram.Types.InputFile list) result =
     }
 
 type TextUpdate =
-    { skin: string -> Result<Skin, ErrorExternal>
+    { skin: GenerateSkin
       chatId: Id
-      text: string
+      context: SkinContext
       replyMessageId: Id }
 
 let sendPhoto (update: TextUpdate) chatId inputFile text =
@@ -83,11 +83,11 @@ let sendMediaGroup chatId messageId inputFiles =
     { sendler with
         ReplyParameters = Some replyInfo }
 
-let generateQuote inputFileGetter skin text =
+let generateQuote inputFileGetter skin context =
     result {
         let imagePath = getImagePath ()
 
-        do! generateQuote imagePath skin text
+        do! generateQuote imagePath skin context
 
         return inputFileGetter imagePath
     }
@@ -101,7 +101,7 @@ let sendExamples context chatId messageId =
             availabelSkins
             |> List.map (fun info ->
                 let alias = join ", " info.alias
-                generateQuote info.skin $"Доступные алиасы: {alias}")
+                generateQuote info.skin (justText $"Доступные алиасы: {alias}"))
             |> resultAny
 
         sendMediaGroup chatId messageId files
@@ -116,7 +116,7 @@ let sendExamples context chatId messageId =
 let sendQuote context (update: TextUpdate) =
     result {
         let generateQuote = generateQuote getInputFile
-        let! inputFile = generateQuote update.skin update.text
+        let! inputFile = generateQuote update.skin update.context
         let botName = context.Me.Username |> withDefault "botName"
         let caption = $"Спасибо, что пользуйетесь @{botName}"
 

@@ -37,7 +37,14 @@ let pepeInfo =
       skin = addRandomWords 3 pepeWords pepe
       localization = ru "Ганвест" }
 
-let availabelSkins = [ avreliiInfo; chadInfo; stethamInfo; jokerInfo; pepeInfo ]
+let selfInfo =
+    { name = "self"
+      alias = [ "self"; "автор"; "author" ]
+      skin = selfSkin
+      localization = ru "Автор сообщения" }
+
+let availabelSkins =
+    [ avreliiInfo; chadInfo; stethamInfo; jokerInfo; pepeInfo; selfInfo ]
 
 let infoByAlias =
     availabelSkins

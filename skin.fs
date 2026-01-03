@@ -25,7 +25,21 @@ type SimpleSkinInfoV2 =
       author: AuthorInfo option
       color: Color }
 
-type GenerateSkin = string -> Result<Skin, ErrorExternal>
+type SkinContext =
+    { authorName: string
+      avatarPath: string
+      textToQuote: string }
+
+let defaultSkinContext =
+    { authorName = "Неизвестен"
+      avatarPath = "./assets/undefined.png"
+      textToQuote = "Lorem ipsum и т.д" }
+
+let justText text =
+    { defaultSkinContext with
+        textToQuote = text }
+
+type GenerateSkin = SkinContext -> Result<Skin, ErrorExternal>
 
 type TSkinInfo =
     { name: string
@@ -65,7 +79,7 @@ let addAuthorDraw author rect style draws =
         let authorDraw = drawText MAX_FONT_SIZE style author.name
         append draws (authorDraw.draw origin)
 
-let simpleSkin skinInfo text =
+let simpleSkin skinInfo context =
     result {
         let color = skinInfo.color
         let rect = skinInfo.quoteRect
@@ -82,7 +96,7 @@ let simpleSkin skinInfo text =
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style text
+        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
         let resolvedRect = { rect with size = quoteDraw.size }
 
         let baseDraws = [| quoteDraw.draw quoteOrigin |]
@@ -92,4 +106,40 @@ let simpleSkin skinInfo text =
               draw = addAuthorDraw skinInfo.author resolvedRect style baseDraws }
     }
 
-type PrepareText = string -> string
+let selfSkin (context: SkinContext) =
+    result {
+        let color = Color.White
+
+        let rect =
+            { size = 680f, 513f
+              origin = centredIn 905f 360f }
+
+        let backgroundPath = Path.Combine(currentDir, "./assets/self.png")
+
+        let! fontFamily = getFontFamily fontPath
+        let fontStyle = FontStyle()
+
+        let style =
+            { fontFamily = fontFamily
+              style = fontStyle
+              color = Some color }
+
+        let quoteOrigin = rect.origin
+        let quoteRect = rect.size
+        let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
+        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
+        let resolvedRect = { rect with size = quoteDraw.size }
+
+        let baseDraws = [| quoteDraw.draw quoteOrigin |]
+
+        let authorOffset = 176f
+
+        let authorInfo =
+            Some
+                { name = context.authorName
+                  offset = authorOffset }
+
+        return
+            { background = backgroundPath
+              draw = addAuthorDraw authorInfo resolvedRect style baseDraws }
+    }

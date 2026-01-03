@@ -11,6 +11,7 @@ open AvailableSkins
 open SimpleSkins
 open Result
 open Commands
+open Skin
 
 type ResolvedUpdate =
     | TextUpdate of TextUpdate
@@ -93,12 +94,16 @@ let resolveUpdateByMessage
         | _ ->
             match chatType with
             | SingleChat ->
+                let context =
+                    { defaultSkinContext with
+                        textToQuote = text }
+
                 return
                     TextUpdate
                         { skin = defaultSkin
                           chatId = chatId
                           replyMessageId = messageId
-                          text = text }
+                          context = context }
             | GroupChat ->
                 let! replyMessage = resolveReplyMessage message
                 let! replyText = resolveMessageText original SingleChat replyMessage
@@ -117,12 +122,16 @@ let resolveUpdateByMessage
 
                 let selectedSkin = chosenSkin |> withDefault defaultSkin
 
+                let context =
+                    { defaultSkinContext with
+                        textToQuote = replyText }
+
                 return
                     TextUpdate
                         { skin = selectedSkin
                           chatId = chatId
                           replyMessageId = replyMessage.MessageId
-                          text = replyText }
+                          context = context }
     }
 
 
