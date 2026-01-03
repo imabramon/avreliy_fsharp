@@ -15,6 +15,7 @@ open Localization
 open AvailableSkins
 open Commands
 open Text
+open Maybe
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -236,3 +237,42 @@ let proccessAddToChat (original: UpdateContext) (update: AddToChatUpdate) =
     startCommandsDescription update.botName GroupChat
     |> groupStartMessage update.botName
     |> sendMessage original update.chatId
+
+let buildFilePath (path: string option) (context: UpdateContext) =
+    maybe {
+        let! path = path
+        return $"https://api.telegram.org/file/bot{context.Config.Token}/{path}"
+    }
+
+let getFilePath fileId context : Async<string option> =
+    async {
+        let! file = Funogram.Telegram.Api.getFile fileId |> api context.Config
+
+        match file with
+        | Ok file -> return buildFilePath file.FilePath context
+        | Error e ->
+            printfn $"Async error: {e}"
+            return None
+    }
+
+let getUserAvatarPath (photos: UserProfilePhotos) context =
+    async {
+        match photos.TotalCount > 0 with
+        | false -> return None
+        | _ ->
+            let photosize = photos.Photos[0][0]
+            let fileId = photosize.FileId
+            return! getFilePath fileId context
+    }
+
+let getUserAvatar id context : Async<string option> =
+    async {
+        let! photos = Funogram.Telegram.Api.getUserProfilePhotos id 0 1 |> api context.Config
+
+        match photos with
+        | Ok photos -> return! getUserAvatarPath photos context
+        | Error e ->
+            printfn $"Async error: {e}"
+            return None
+
+    }
