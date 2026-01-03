@@ -66,6 +66,11 @@ type MessageToReply = { chatId: int64; messageId: int64 }
 let giveFeedback context messageToReply text =
     replyToMessage context messageToReply.chatId messageToReply.messageId text
 
+let resolveAuthor (message: TMessage) =
+    match message.From with
+    | Some user -> (user.FirstName + " " + (user.LastName |> withDefault " ")).Trim()
+    | None -> "Неизвестен"
+
 let resolveUpdateByMessage
     repository
     (original: UpdateContext)
@@ -96,6 +101,7 @@ let resolveUpdateByMessage
             | SingleChat ->
                 let context =
                     { defaultSkinContext with
+                        authorName = resolveAuthor message
                         textToQuote = text }
 
                 return
@@ -124,6 +130,7 @@ let resolveUpdateByMessage
 
                 let context =
                     { defaultSkinContext with
+                        authorName = resolveAuthor replyMessage
                         textToQuote = replyText }
 
                 return
