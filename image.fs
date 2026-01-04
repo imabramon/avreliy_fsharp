@@ -1,8 +1,12 @@
 module Image
 
 open System
+open System.IO
+open System.Net.Http
 open SixLabors.Fonts
 open SixLabors.ImageSharp
+open SixLabors.ImageSharp.Drawing
+open SixLabors.ImageSharp.PixelFormats
 open SixLabors.ImageSharp.Drawing.Processing
 open SixLabors.ImageSharp.Processing
 
@@ -95,10 +99,24 @@ let findOptimalFontSize (fontFamily: FontFamily) (fontStyle: FontStyle) text max
     | _ when height <= maxHeight -> maxSize
     | _ -> binarySearch getHeight maxHeight minSize maxSize
 
+let isUrl (text: string) =
+    text.StartsWith("http://") || text.StartsWith("https://")
+
 let getImage (imagePath: string) =
     try
-        let image = Image.Load(imagePath)
-        Ok image
+        match isUrl imagePath with
+        | false ->
+            let image = Image.Load(imagePath)
+            Ok image
+        | true ->
+            use httpClient = new HttpClient()
+
+            use stream =
+                httpClient.GetStreamAsync(imagePath)
+                |> Async.AwaitTask
+                |> Async.RunSynchronously
+
+            Ok(Image.Load stream)
     with e ->
         logError e.Message
 
@@ -164,3 +182,37 @@ let generateImage (image: Image) (outputPath: string) (jobs: AbstactDrawJob arra
 let centredIn x y =
     { origin = PointF(x, y)
       position = Centred }
+
+let drawImage (image: Image) =
+    let size = image.Width |> float32, image.Height |> float32
+
+    let draw origin (ctx: Ctx) =
+        let x, y = pointOf origin size
+        ctx.DrawImage(image, Point(int x, int y), 1f) |> ignore
+
+    { size = size; draw = draw }
+
+let resizeImage (width: float32) (height: float32) (image: Image) =
+    let resizeOptions = ResizeOptions()
+    resizeOptions.Size <- Size(int width, int height)
+    resizeOptions.Mode <- ResizeMode.Max
+
+    image.Clone(fun ctx -> ctx.Resize(resizeOptions) |> ignore)
+
+let applyCircleMask (image: Image) =
+    let width = image.Width
+    let height = image.Height
+    let radius = float32 (min width height) / 2f
+    let centerX = float32 width / 2f
+    let centerY = float32 height / 2f
+
+    let maskedImage = new Image<Rgba32>(width, height)
+
+    maskedImage.Mutate(fun ctx ->
+        ctx.Clip(
+            EllipsePolygon(centerX, centerY, radius),
+            fun clippedCtx -> clippedCtx.DrawImage(image, Point(0, 0), 1f) |> ignore
+        )
+        |> ignore)
+
+    maskedImage

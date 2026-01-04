@@ -133,7 +133,18 @@ let selfSkin (context: SkinContext) =
         let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
         let resolvedRect = { rect with size = quoteDraw.size }
 
-        let baseDraws = [| quoteDraw.draw quoteOrigin |]
+        let! avatar =
+            getImage context.avatarPath
+            |> map (resizeImage 364f 364f)
+            |> map applyCircleMask
+
+        let avatarDraw = drawImage avatar
+
+        let avatarOrigin =
+            { position = Raw
+              origin = PointF(76f, 133f) }
+
+        let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
 
         let authorOffset = 176f
 
