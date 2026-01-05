@@ -1,6 +1,7 @@
 module Utils
 
 open System
+open System.IO
 open DotNetEnv
 open Funogram.Types
 
@@ -113,3 +114,9 @@ let resultAny (error: 'b) (list: Result<'a, 'b> list) =
 
 let pickRandom (list: 'a list) =
     list |> List.item (Random().Next(list.Length))
+
+type Sync() =
+    static member run(task: System.Threading.Tasks.Task<'a>) =
+        task |> Async.AwaitTask |> Async.RunSynchronously
+
+    static member run(promise: Async<'a>) = promise |> Async.RunSynchronously

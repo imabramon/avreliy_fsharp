@@ -111,10 +111,7 @@ let getImage (imagePath: string) =
         | true ->
             use httpClient = new HttpClient()
 
-            use stream =
-                httpClient.GetStreamAsync(imagePath)
-                |> Async.AwaitTask
-                |> Async.RunSynchronously
+            use stream = httpClient.GetStreamAsync(imagePath) |> Sync.run
 
             Ok(Image.Load stream)
     with e ->
