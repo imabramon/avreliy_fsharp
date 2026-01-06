@@ -8,7 +8,9 @@ open Funogram.Telegram.Types
 
 open Domain
 open Skin
-open Utils
+open Utils.Async
+open Utils.String
+open Utils.Error
 open Result
 open Errors
 open Localization

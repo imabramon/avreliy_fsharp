@@ -1,6 +1,7 @@
 module SkinHelpers
 
-open Utils
+open Utils.Common
+open Utils.String
 open Skin
 
 let addRandomWords freq words (generate: GenerateSkin) context =

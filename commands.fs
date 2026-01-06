@@ -1,10 +1,11 @@
 module Commands
 
+open Funogram.Telegram.Types
+
 open Domain
-open Utils
+open Utils.String
 open Errors
 open Localization
-open Funogram.Telegram.Types
 
 type Command =
     | Start

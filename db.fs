@@ -3,7 +3,7 @@ module Database
 open Npgsql.FSharp
 
 open Domain
-open Utils
+open Utils.IO
 open Result
 
 let CHATS_NAME = "chats"

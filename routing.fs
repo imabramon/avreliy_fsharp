@@ -4,12 +4,12 @@ open System
 open Funogram.Telegram.Bot
 
 open Domain
-open Utils
+open Maybe
+open Result
 open Handlers
 open Errors
 open AvailableSkins
 open SimpleSkins
-open Result
 open Commands
 open Skin
 

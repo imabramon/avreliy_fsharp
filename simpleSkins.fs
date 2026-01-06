@@ -3,7 +3,7 @@ module SimpleSkins
 open SixLabors.ImageSharp
 
 open Skin
-open Image
+open Image.Common
 
 let avrelii =
     simpleSkin

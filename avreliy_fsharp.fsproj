@@ -14,10 +14,10 @@
   <ItemGroup><Compile Include="localization.fs" /><Compile Include="errors.fs" />
     <Compile Include="result.fs" />
     <Compile Include="maybe.fs" />
-    <Compile Include="utils.fs" />
+    <Compile Include="utils.common.fs" /><Compile Include="utils.polymer.fs" /><Compile Include="utils.error.fs" /><Compile Include="utils.io.fs" /><Compile Include="utils.async.fs" /><Compile Include="utils.string.fs" />
     <Compile Include="domain.fs" />
     <Compile Include="db.fs" />
-    <Compile Include="image.fs" /><Compile Include="text.fs" />
+    <Compile Include="image.common.fs" /><Compile Include="image.text.fs" /><Compile Include="image.picture.fs" /><Compile Include="text.fs" />
     <Compile Include="skin.fs" /><Compile Include="skinHelpers.fs" />
     <Compile Include="simpleSkins.fs" /><Compile Include="availableSkins.fs" /><Compile Include="commands.fs" />
     <Compile Include="handlers.fs" /><Compile Include="routing.fs" />

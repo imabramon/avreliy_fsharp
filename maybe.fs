@@ -11,3 +11,15 @@ type MaybeBuilder() =
     member _.Zero() = None
 
 let maybe = MaybeBuilder()
+
+let withDefault defualtValue value =
+    match value with
+    | Some value -> value
+    | None -> defualtValue
+
+let noneIfError x =
+    match x with
+    | Ok x -> x
+    | Error e ->
+        printfn $"Error: {e}"
+        None

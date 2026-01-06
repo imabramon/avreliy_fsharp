@@ -5,9 +5,11 @@ open System.IO
 open SixLabors.Fonts
 open SixLabors.ImageSharp
 
-open Image
+open Image.Common
+open Image.Text
+open Image.Picture
 open Result
-open Utils
+open Utils.Common
 open Errors
 open Localization
 
