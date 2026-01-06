@@ -5,9 +5,11 @@ open System.IO
 open SixLabors.Fonts
 open SixLabors.ImageSharp
 
-open Image
+open Image.Common
+open Image.Text
+open Image.Picture
 open Result
-open Utils
+open Utils.Common
 open Errors
 open Localization
 
@@ -25,7 +27,23 @@ type SimpleSkinInfoV2 =
       author: AuthorInfo option
       color: Color }
 
-type GenerateSkin = string -> Result<Skin, ErrorExternal>
+type SkinContext =
+    { authorName: string
+      avatarPath: string
+      textToQuote: string
+      authorId: int64 }
+
+let defaultSkinContext =
+    { authorName = "Неизвестен"
+      avatarPath = "./assets/undefined.png"
+      textToQuote = "Lorem ipsum и т.д"
+      authorId = 0 }
+
+let justText text =
+    { defaultSkinContext with
+        textToQuote = text }
+
+type GenerateSkin = SkinContext -> Result<Skin, ErrorExternal>
 
 type TSkinInfo =
     { name: string
@@ -65,7 +83,7 @@ let addAuthorDraw author rect style draws =
         let authorDraw = drawText MAX_FONT_SIZE style author.name
         append draws (authorDraw.draw origin)
 
-let simpleSkin skinInfo text =
+let simpleSkin skinInfo context =
     result {
         let color = skinInfo.color
         let rect = skinInfo.quoteRect
@@ -77,12 +95,13 @@ let simpleSkin skinInfo text =
         let style =
             { fontFamily = fontFamily
               style = fontStyle
-              color = Some color }
+              color = Some color
+              options = None }
 
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style text
+        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
         let resolvedRect = { rect with size = quoteDraw.size }
 
         let baseDraws = [| quoteDraw.draw quoteOrigin |]
@@ -92,4 +111,54 @@ let simpleSkin skinInfo text =
               draw = addAuthorDraw skinInfo.author resolvedRect style baseDraws }
     }
 
-type PrepareText = string -> string
+let selfSkin (context: SkinContext) =
+    result {
+        let color = Color.White
+
+        let rect =
+            { size = 680f, 513f
+              origin = centredIn 905f 360f }
+
+        let backgroundPath = Path.Combine(currentDir, "./assets/self.png")
+
+        let! fontFamily = getFontFamily fontPath
+        let fontStyle = FontStyle()
+
+        let options = { border = Some { width = 5f; color = Color.Black } }
+
+        let style =
+            { fontFamily = fontFamily
+              style = fontStyle
+              color = Some color
+              options = Some options }
+
+        let quoteOrigin = rect.origin
+        let quoteRect = rect.size
+        let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
+        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
+        let resolvedRect = { rect with size = quoteDraw.size }
+
+        let! avatar =
+            getImage context.avatarPath
+            |> map (resizeImage 364f 364f)
+            |> map applyCircleMask
+
+        let avatarDraw = drawImage avatar
+
+        let avatarOrigin =
+            { position = Raw
+              origin = PointF(100f, 178f) }
+
+        let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
+
+        let authorOffset = 176f
+
+        let authorInfo =
+            Some
+                { name = context.authorName
+                  offset = authorOffset }
+
+        return
+            { background = backgroundPath
+              draw = addAuthorDraw authorInfo resolvedRect style baseDraws }
+    }

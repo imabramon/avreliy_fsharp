@@ -4,13 +4,14 @@ open System
 open Funogram.Telegram.Bot
 
 open Domain
-open Utils
+open Maybe
+open Result
 open Handlers
 open Errors
 open AvailableSkins
 open SimpleSkins
-open Result
 open Commands
+open Skin
 
 type ResolvedUpdate =
     | TextUpdate of TextUpdate
@@ -60,10 +61,15 @@ let resolveReplyMessage (message: TMessage) =
     | Some message -> Ok message
     | None -> sendError "Чтобы сгенерировать цитату, ответьте на сообщение и тегните меня"
 
-type MessageToReply = { chatId: int64; messageId: int64 }
+let resolveAuthor (message: TMessage) =
+    match message.From with
+    | Some user -> (user.FirstName + " " + (user.LastName |> withDefault " ")).Trim()
+    | None -> "Неизвестен"
 
-let giveFeedback context messageToReply text =
-    replyToMessage context messageToReply.chatId messageToReply.messageId text
+let resolveAuthorId (message: TMessage) =
+    match message.From with
+    | Some user -> user.Id
+    | None -> 0
 
 let resolveUpdateByMessage
     repository
@@ -93,12 +99,18 @@ let resolveUpdateByMessage
         | _ ->
             match chatType with
             | SingleChat ->
+                let context =
+                    { defaultSkinContext with
+                        authorId = resolveAuthorId message
+                        authorName = resolveAuthor message
+                        textToQuote = text }
+
                 return
                     TextUpdate
                         { skin = defaultSkin
                           chatId = chatId
                           replyMessageId = messageId
-                          text = text }
+                          context = context }
             | GroupChat ->
                 let! replyMessage = resolveReplyMessage message
                 let! replyText = resolveMessageText original SingleChat replyMessage
@@ -117,12 +129,18 @@ let resolveUpdateByMessage
 
                 let selectedSkin = chosenSkin |> withDefault defaultSkin
 
+                let context =
+                    { defaultSkinContext with
+                        authorId = resolveAuthorId replyMessage
+                        authorName = resolveAuthor replyMessage
+                        textToQuote = replyText }
+
                 return
                     TextUpdate
                         { skin = selectedSkin
                           chatId = chatId
                           replyMessageId = replyMessage.MessageId
-                          text = replyText }
+                          context = context }
     }
 
 
@@ -142,14 +160,16 @@ let resolveUpdate repository (context: UpdateContext) : Result<ResolvedUpdate, E
         )
     | _ -> logError "Unsupported update to resolve"
 
-let proccessUpdate repository context : Result<unit, ErrorExternal> =
+let proccessUpdate messageToReply repository context : Result<unit, ErrorExternal> =
     result {
         printfn $"Get update: {context.Update.UpdateId}"
 
         let! update = resolveUpdate repository context
 
         match update with
-        | TextUpdate update -> return! sendQuote context update
+        | TextUpdate update ->
+            proccessTextUpdate messageToReply update context
+            return ()
         | CommandUpdate command -> return! proccessCommand context command
         | QueryUpdate query -> return! proccessQuery repository context query
         | AddToChatUpdate addToChat -> return proccessAddToChat context addToChat
@@ -188,13 +208,28 @@ let getMessageToReply (update: UpdateContext) =
               messageId = m.MessageId }
     | _ -> None
 
+let getProccessUpdate messageToReply botContext update () =
+    result {
+        do! validateUpdate botContext.validation update
+        do! proccessUpdate messageToReply botContext.repository update
+    }
+
 let update botContext update =
+    let messageToReply = getMessageToReply update
+    let proccessUpdate = getProccessUpdate messageToReply botContext update
+    let hasMessageToReply () = messageToReply
+
+    proccessUpdate
+    |> useFeedback hasMessageToReply (getFeedbackSendler update) printError
+
+
+let update2 botContext update =
     let messageToReply = getMessageToReply update
 
     match
         result {
             do! validateUpdate botContext.validation update
-            do! proccessUpdate botContext.repository update
+            do! proccessUpdate messageToReply botContext.repository update
         }
     with
     | Ok _ -> ()

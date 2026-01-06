@@ -1,4 +1,4 @@
-module Image
+module Image.Text
 
 open System
 open SixLabors.Fonts
@@ -6,29 +6,21 @@ open SixLabors.ImageSharp
 open SixLabors.ImageSharp.Drawing.Processing
 open SixLabors.ImageSharp.Processing
 
-open Utils
+open Image.Common
+open Utils.Common
+open Utils.Polymer
+open Maybe
 open Errors
 
-type OriginPosition =
-    | Centred
-    | Raw
+type Border = { width: float32; color: Color }
 
-type Origin =
-    { origin: PointF
-      position: OriginPosition }
+type TextStyleOptions = { border: Border option }
 
 type TextStyle =
     { fontFamily: FontFamily
       style: FontStyle
-      color: Color option }
-
-type Ctx = IImageProcessingContext
-type AbstactDrawJob = Ctx -> unit
-type DrawJob = Origin -> AbstactDrawJob
-
-type Draw =
-    { size: float32 * float32
-      draw: DrawJob }
+      color: Color option
+      options: TextStyleOptions option }
 
 let measureText (font: Font) (text: string) =
     let options = TextOptions(font)
@@ -46,9 +38,9 @@ let wrapText (font: Font) maxWidth (text: string) =
 
     let rec wrap text line lineWidth wordWidths =
 
-        let textWithBreak = Helper.nonEmptyWith (text, "\n")
-        let lineWithSpace = Helper.nonEmptyWith (line, " ")
-        let widthWithSpace = Helper.nonEmptyWith (lineWidth, spaceWidth)
+        let textWithBreak = Polymer.nonEmptyWith (text, "\n")
+        let lineWithSpace = Polymer.nonEmptyWith (line, " ")
+        let widthWithSpace = Polymer.nonEmptyWith (lineWidth, spaceWidth)
 
         match wordWidths with
         | [] -> textWithBreak + line
@@ -69,18 +61,6 @@ let wrapText (font: Font) maxWidth (text: string) =
 
     wrap "" "" 0f wordWidths
 
-
-let rec binarySearch fn max low high =
-    let mid = (low + high) / 2.0f
-    let value = fn mid
-
-    if high - low <= 0.1f then
-        if value <= max then mid else low
-    else
-        match value <= max with
-        | true -> binarySearch fn max mid high
-        | false -> binarySearch fn max low mid
-
 let findOptimalFontSize (fontFamily: FontFamily) (fontStyle: FontStyle) text maxWidth maxHeight minSize maxSize =
 
     let getHeight size =
@@ -95,36 +75,27 @@ let findOptimalFontSize (fontFamily: FontFamily) (fontStyle: FontStyle) text max
     | _ when height <= maxHeight -> maxSize
     | _ -> binarySearch getHeight maxHeight minSize maxSize
 
-let getImage (imagePath: string) =
-    try
-        let image = Image.Load(imagePath)
-        Ok image
-    with e ->
-        logError e.Message
-
-let getFontFamily (fontPath: string) =
-    let fontCollection = FontCollection()
-
-    try
-        let fontFamily = fontCollection.Add(fontPath)
-        Ok fontFamily
-    with e ->
-        logError e.Message
-
-let pointOf (origin: Origin) (rect: float32 * float32) =
-    let x, y = origin.origin.X, origin.origin.Y
-    let width, height = rect
-
-    match origin.position with
-    | Centred ->
-        let x0 = x - (width / 2f)
-        let y0 = y - (height / 2f)
-        x0, y0
-    | Raw -> x, y
-
 let measureTextSize font text =
     let size = measureText font text
     size.Width, size.Height
+
+let borderOf textStyle =
+    match textStyle.options with
+    | None -> None
+    | Some options -> options.border
+
+let drawTextBorder (ctx: IImageProcessingContext) (options: RichTextOptions) x y (text: string) style =
+    maybe {
+        let! border = borderOf style
+        let color = border.color
+        let drawing = new DrawingOptions()
+
+        ctx.DrawText(drawing, options, text, Brushes.Solid(color), Pens.Solid(color, border.width))
+        |> ignore
+
+        return ()
+    }
+    |> ignore
 
 let drawText (size: float32) (style: TextStyle) text =
     let font = Font(style.fontFamily, size, style.style)
@@ -135,6 +106,7 @@ let drawText (size: float32) (style: TextStyle) text =
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
         options.Origin <- PointF(x, y)
+        do drawTextBorder ctx options x y text style
         ctx.DrawText(options, text, color) |> ignore
 
     { size = size; draw = draw }
@@ -150,17 +122,18 @@ let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextSt
 
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
-        let options = RichTextOptions(font)
+        let options = RichTextOptions font
         options.Origin <- PointF(x, y)
+        do drawTextBorder ctx options x y wrappedText style
         ctx.DrawText(options, wrappedText, color) |> ignore
 
     { size = size; draw = draw }
 
+let getFontFamily (fontPath: string) =
+    let fontCollection = FontCollection()
 
-let generateImage (image: Image) (outputPath: string) (jobs: AbstactDrawJob array) =
-    Array.ForEach(jobs, (fun job -> image.Mutate job))
-    image.Save outputPath
-
-let centredIn x y =
-    { origin = PointF(x, y)
-      position = Centred }
+    try
+        let fontFamily = fontCollection.Add(fontPath)
+        Ok fontFamily
+    with e ->
+        logError e.Message

@@ -61,3 +61,26 @@ type ResultBilder<'TError>(zeroError: 'TError) =
         loop ()
 
 let result = ResultBilder(PrivateError { message = "Nothing was returned" })
+
+let ignoreResult x =
+    match x with
+    | Ok _ -> Ok()
+    | Error e -> Error e
+
+let toResult fn : Result<'a, ErrorExternal> =
+    try
+        Ok(fn ())
+    with e ->
+        logError e.Message
+
+let resultAny (error: 'b) (list: Result<'a, 'b> list) =
+    let results =
+        list
+        |> List.collect (fun res ->
+            match res with
+            | Ok o -> [ o ]
+            | Error _ -> [])
+
+    match results.Length with
+    | x when x > 0 -> Ok results
+    | _ -> Error error

@@ -17,4 +17,3 @@ let getMessage e =
     match e with
     | PrivateError e -> e.message
     | PublicError e -> e.message
-

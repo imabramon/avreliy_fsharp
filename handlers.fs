@@ -8,13 +8,16 @@ open Funogram.Telegram.Types
 
 open Domain
 open Skin
-open Utils
+open Utils.Async
+open Utils.String
+open Utils.Error
 open Result
 open Errors
 open Localization
 open AvailableSkins
 open Commands
 open Text
+open Maybe
 
 let getImagePath () =
     let tempFile = DateTime.Now.ToFileTimeUtc().ToString() + ".png"
@@ -57,9 +60,9 @@ let disposeFileList (f: Funogram.Telegram.Types.InputFile list) result =
     }
 
 type TextUpdate =
-    { skin: string -> Result<Skin, ErrorExternal>
+    { skin: GenerateSkin
       chatId: Id
-      text: string
+      context: SkinContext
       replyMessageId: Id }
 
 let sendPhoto (update: TextUpdate) chatId inputFile text =
@@ -83,11 +86,11 @@ let sendMediaGroup chatId messageId inputFiles =
     { sendler with
         ReplyParameters = Some replyInfo }
 
-let generateQuote inputFileGetter skin text =
+let generateQuote inputFileGetter skin context =
     result {
         let imagePath = getImagePath ()
 
-        do! generateQuote imagePath skin text
+        do! generateQuote imagePath skin context
 
         return inputFileGetter imagePath
     }
@@ -101,7 +104,7 @@ let sendExamples context chatId messageId =
             availabelSkins
             |> List.map (fun info ->
                 let alias = join ", " info.alias
-                generateQuote info.skin $"Доступные алиасы: {alias}")
+                generateQuote info.skin (justText $"Доступные алиасы: {alias}"))
             |> resultAny
 
         sendMediaGroup chatId messageId files
@@ -116,7 +119,7 @@ let sendExamples context chatId messageId =
 let sendQuote context (update: TextUpdate) =
     result {
         let generateQuote = generateQuote getInputFile
-        let! inputFile = generateQuote update.skin update.text
+        let! inputFile = generateQuote update.skin update.context
         let botName = context.Me.Username |> withDefault "botName"
         let caption = $"Спасибо, что пользуйетесь @{botName}"
 
@@ -236,3 +239,82 @@ let proccessAddToChat (original: UpdateContext) (update: AddToChatUpdate) =
     startCommandsDescription update.botName GroupChat
     |> groupStartMessage update.botName
     |> sendMessage original update.chatId
+
+let buildFilePath (path: string option) (context: UpdateContext) =
+    maybe {
+        let! path = path
+        return $"https://api.telegram.org/file/bot{context.Config.Token}/{path}"
+    }
+
+let getFilePath fileId context : Async<string option> =
+    async {
+        let! file = Funogram.Telegram.Api.getFile fileId |> api context.Config
+
+        match file with
+        | Ok file -> return buildFilePath file.FilePath context
+        | Error e ->
+            printfn $"Async error: {e}"
+            return None
+    }
+
+let getUserAvatarPath (photos: UserProfilePhotos) context =
+    async {
+        match photos.TotalCount > 0 with
+        | false -> return None
+        | _ ->
+            let photosize = photos.Photos[0][0]
+            let fileId = photosize.FileId
+            return! getFilePath fileId context
+    }
+
+let getUserAvatar id context : Async<string option> =
+    async {
+        let! photos = Funogram.Telegram.Api.getUserProfilePhotos id 0 1 |> api context.Config
+
+        match photos with
+        | Ok photos -> return! getUserAvatarPath photos context
+        | Error e ->
+            printfn $"Async error: {e}"
+            return None
+
+    }
+
+type MessageToReply = { chatId: int64; messageId: int64 }
+
+let giveFeedback context messageToReply text =
+    replyToMessage context messageToReply.chatId messageToReply.messageId text
+
+let useFeedback pubCheck pubFn privFn fn =
+    match result { do! fn () } with
+    | Ok _ -> ()
+    | Error e ->
+        match e, pubCheck () with
+        | PublicError e, Some context -> pubFn e context
+        | _ -> privFn e
+
+let getFeedbackSendler update e messageToReply =
+    giveFeedback update messageToReply e.message
+
+let printError e = printfn $"Error: {getMessage e}"
+
+let proccessTextUpdate messageToReply (update: TextUpdate) context =
+    async {
+        let! avatarPathOption = getUserAvatar update.context.authorId context
+        let avatarPath = avatarPathOption |> withDefault ""
+
+        let update =
+            { update with
+                context =
+                    { update.context with
+                        avatarPath = avatarPath } }
+
+        let proccessUpdate () = result { do! sendQuote context update }
+        let hasMessageToReply () = messageToReply
+
+        proccessUpdate
+        |> useFeedback hasMessageToReply (getFeedbackSendler context) printError
+
+        return ()
+    }
+    |> Async.Ignore
+    |> Async.Start

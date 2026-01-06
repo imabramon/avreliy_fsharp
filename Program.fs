@@ -5,7 +5,7 @@ open DotNetEnv
 open Funogram.Telegram.Bot
 
 open Domain
-open Utils
+open Utils.IO
 open Result
 open Routing
 open Database
