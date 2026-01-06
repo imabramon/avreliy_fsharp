@@ -95,7 +95,8 @@ let simpleSkin skinInfo context =
         let style =
             { fontFamily = fontFamily
               style = fontStyle
-              color = Some color }
+              color = Some color
+              options = None }
 
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
@@ -112,7 +113,6 @@ let simpleSkin skinInfo context =
 
 let selfSkin (context: SkinContext) =
     result {
-        printfn $"user id: {context.avatarPath}"
         let color = Color.White
 
         let rect =
@@ -124,10 +124,13 @@ let selfSkin (context: SkinContext) =
         let! fontFamily = getFontFamily fontPath
         let fontStyle = FontStyle()
 
+        let options = { border = Some { width = 5f; color = Color.Black } }
+
         let style =
             { fontFamily = fontFamily
               style = fontStyle
-              color = Some color }
+              color = Some color
+              options = Some options }
 
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
@@ -144,7 +147,7 @@ let selfSkin (context: SkinContext) =
 
         let avatarOrigin =
             { position = Raw
-              origin = PointF(76f, 133f) }
+              origin = PointF(100f, 178f) }
 
         let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
 

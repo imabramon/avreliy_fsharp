@@ -12,10 +12,15 @@ open Utils.Polymer
 open Maybe
 open Errors
 
+type Border = { width: float32; color: Color }
+
+type TextStyleOptions = { border: Border option }
+
 type TextStyle =
     { fontFamily: FontFamily
       style: FontStyle
-      color: Color option }
+      color: Color option
+      options: TextStyleOptions option }
 
 let measureText (font: Font) (text: string) =
     let options = TextOptions(font)
@@ -74,6 +79,24 @@ let measureTextSize font text =
     let size = measureText font text
     size.Width, size.Height
 
+let borderOf textStyle =
+    match textStyle.options with
+    | None -> None
+    | Some options -> options.border
+
+let drawTextBorder (ctx: IImageProcessingContext) (options: RichTextOptions) x y (text: string) style =
+    maybe {
+        let! border = borderOf style
+        let color = border.color
+        let drawing = new DrawingOptions()
+
+        ctx.DrawText(drawing, options, text, Brushes.Solid(color), Pens.Solid(color, border.width))
+        |> ignore
+
+        return ()
+    }
+    |> ignore
+
 let drawText (size: float32) (style: TextStyle) text =
     let font = Font(style.fontFamily, size, style.style)
     let size = measureTextSize font text
@@ -83,6 +106,7 @@ let drawText (size: float32) (style: TextStyle) text =
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
         options.Origin <- PointF(x, y)
+        do drawTextBorder ctx options x y text style
         ctx.DrawText(options, text, color) |> ignore
 
     { size = size; draw = draw }
@@ -98,8 +122,9 @@ let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextSt
 
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
-        let options = RichTextOptions(font)
+        let options = RichTextOptions font
         options.Origin <- PointF(x, y)
+        do drawTextBorder ctx options x y wrappedText style
         ctx.DrawText(options, wrappedText, color) |> ignore
 
     { size = size; draw = draw }
