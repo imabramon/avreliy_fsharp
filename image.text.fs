@@ -14,7 +14,11 @@ open Errors
 
 type Border = { width: float32; color: Color }
 
-type TextStyleOptions = { border: Border option }
+type Shadow = { offset: float32 pair; color: Color }
+
+type TextStyleOptions =
+    { border: Border option
+      shadow: Shadow option }
 
 type TextStyle =
     { fontFamily: FontFamily
@@ -84,8 +88,23 @@ let borderOf textStyle =
     | None -> None
     | Some options -> options.border
 
+let shadowOf textStyle =
+    match textStyle.options with
+    | None -> None
+    | Some options -> options.shadow
+
 let drawText (ctx: IImageProcessingContext) (font: Font) (color: Color) (point: PointF) (text: string) =
     ctx.DrawText(text, font, Brushes.Solid color, point) |> ignore
+
+let drawTextShadow (ctx: IImageProcessingContext) (font: Font) (point: PointF) (shadow: Shadow option) (text: string) =
+    maybe {
+        let! shadow = shadow
+        let x, y = shadow.offset
+        let point = PointF(point.X + x, point.Y + y)
+        ctx.DrawText(text, font, Brushes.Solid shadow.color, point) |> ignore
+        return ()
+    }
+    |> ignore
 
 
 let getTextBlueprint (fontSize: float32) (style: TextStyle) text =
@@ -96,6 +115,7 @@ let getTextBlueprint (fontSize: float32) (style: TextStyle) text =
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
         let point = PointF(x, y)
+        do drawTextShadow ctx font point (shadowOf style) text
         do drawText ctx font color point text
 
     { bounds = size; draw = draw }
@@ -112,6 +132,7 @@ let getTextInRectBlueprint (rect: float32 pair) (sizeRange: float32 pair) (style
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
         let point = PointF(x, y)
+        do drawTextShadow ctx font point (shadowOf style) wrappedText
         do drawText ctx font color point wrappedText
 
     { bounds = size; draw = draw }

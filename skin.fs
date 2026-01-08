@@ -101,7 +101,10 @@ let simpleSkin skinInfo context =
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
+
+        let quoteDraw =
+            getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
+
         let resolvedRect = { rect with size = quoteDraw.bounds }
 
         let baseDraws = [| quoteDraw.draw quoteOrigin |]
@@ -124,7 +127,9 @@ let selfSkin (context: SkinContext) =
         let! fontFamily = getFontFamily fontPath
         let fontStyle = FontStyle()
 
-        let options = { border = Some { width = 5f; color = Color.Black } }
+        let options =
+            { border = Some { width = 5f; color = Color.Black }
+              shadow = Some { offset = 3f, 3f; color = Color.Black } }
 
         let style =
             { fontFamily = fontFamily
@@ -135,7 +140,10 @@ let selfSkin (context: SkinContext) =
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
+
+        let quoteDraw =
+            getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
+
         let resolvedRect = { rect with size = quoteDraw.bounds }
 
         let! avatar =
