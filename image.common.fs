@@ -26,8 +26,8 @@ type Ctx = IImageProcessingContext
 type AbstactDrawJob = Ctx -> unit
 type DrawJob = Origin -> AbstactDrawJob
 
-type Draw =
-    { size: float32 * float32
+type Blueprint =
+    { bounds: float32 * float32
       draw: DrawJob }
 
 let getImage (imagePath: string) =

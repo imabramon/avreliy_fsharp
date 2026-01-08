@@ -84,34 +84,23 @@ let borderOf textStyle =
     | None -> None
     | Some options -> options.border
 
-let drawTextBorder (ctx: IImageProcessingContext) (options: RichTextOptions) x y (text: string) style =
-    maybe {
-        let! border = borderOf style
-        let color = border.color
-        let drawing = new DrawingOptions()
+let drawText (ctx: IImageProcessingContext) (font: Font) (color: Color) (point: PointF) (text: string) =
+    ctx.DrawText(text, font, Brushes.Solid color, point) |> ignore
 
-        ctx.DrawText(drawing, options, text, Brushes.Solid(color), Pens.Solid(color, border.width))
-        |> ignore
 
-        return ()
-    }
-    |> ignore
-
-let drawText (size: float32) (style: TextStyle) text =
-    let font = Font(style.fontFamily, size, style.style)
+let getTextBlueprint (fontSize: float32) (style: TextStyle) text =
+    let font = Font(style.fontFamily, fontSize, style.style)
     let size = measureTextSize font text
-    let options = RichTextOptions(font)
     let color = style.color |> withDefault Color.Black
 
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
-        options.Origin <- PointF(x, y)
-        do drawTextBorder ctx options x y text style
-        ctx.DrawText(options, text, color) |> ignore
+        let point = PointF(x, y)
+        do drawText ctx font color point text
 
-    { size = size; draw = draw }
+    { bounds = size; draw = draw }
 
-let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextStyle) text =
+let getTextInRectBlueprint (rect: float32 pair) (sizeRange: float32 pair) (style: TextStyle) text =
     let w, h = rect
     let min, max = sizeRange
     let fontSize = findOptimalFontSize style.fontFamily style.style text w h min max
@@ -122,12 +111,10 @@ let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextSt
 
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
-        let options = RichTextOptions font
-        options.Origin <- PointF(x, y)
-        do drawTextBorder ctx options x y wrappedText style
-        ctx.DrawText(options, wrappedText, color) |> ignore
+        let point = PointF(x, y)
+        do drawText ctx font color point wrappedText
 
-    { size = size; draw = draw }
+    { bounds = size; draw = draw }
 
 let getFontFamily (fontPath: string) =
     let fontCollection = FontCollection()

@@ -80,7 +80,7 @@ let addAuthorDraw author rect style draws =
     | None -> draws
     | Some author ->
         let origin = getOrigin rect author.offset
-        let authorDraw = drawText MAX_FONT_SIZE style author.name
+        let authorDraw = getTextBlueprint MAX_FONT_SIZE style author.name
         append draws (authorDraw.draw origin)
 
 let simpleSkin skinInfo context =
@@ -101,8 +101,8 @@ let simpleSkin skinInfo context =
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
-        let resolvedRect = { rect with size = quoteDraw.size }
+        let quoteDraw = getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
+        let resolvedRect = { rect with size = quoteDraw.bounds }
 
         let baseDraws = [| quoteDraw.draw quoteOrigin |]
 
@@ -135,8 +135,8 @@ let selfSkin (context: SkinContext) =
         let quoteOrigin = rect.origin
         let quoteRect = rect.size
         let quoteSizeRange = MIN_FONT_SIZE, MAX_FONT_SIZE
-        let quoteDraw = drawTextInRect quoteRect quoteSizeRange style context.textToQuote
-        let resolvedRect = { rect with size = quoteDraw.size }
+        let quoteDraw = getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
+        let resolvedRect = { rect with size = quoteDraw.bounds }
 
         let! avatar =
             getImage context.avatarPath
