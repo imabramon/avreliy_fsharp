@@ -276,7 +276,6 @@ let getUserAvatar id context : Async<string option> =
         | Error e ->
             printfn $"Async error: {e}"
             return None
-
     }
 
 type MessageToReply = { chatId: int64; messageId: int64 }
@@ -285,7 +284,12 @@ let giveFeedback context messageToReply text =
     replyToMessage context messageToReply.chatId messageToReply.messageId text
 
 let useFeedback pubCheck pubFn privFn fn =
-    match result { do! fn () } with
+    match
+        result {
+            do! fn ()
+            return ()
+        }
+    with
     | Ok _ -> ()
     | Error e ->
         match e, pubCheck () with
@@ -300,7 +304,7 @@ let printError e = printfn $"Error: {getMessage e}"
 let proccessTextUpdate messageToReply (update: TextUpdate) context =
     async {
         let! avatarPathOption = getUserAvatar update.context.authorId context
-        let avatarPath = avatarPathOption |> withDefault ""
+        let avatarPath = avatarPathOption |> withDefault DEFAULT_AVATAR_PATH
 
         let update =
             { update with
@@ -308,7 +312,12 @@ let proccessTextUpdate messageToReply (update: TextUpdate) context =
                     { update.context with
                         avatarPath = avatarPath } }
 
-        let proccessUpdate () = result { do! sendQuote context update }
+        let proccessUpdate () =
+            result {
+                do! sendQuote context update
+                return ()
+            }
+
         let hasMessageToReply () = messageToReply
 
         proccessUpdate

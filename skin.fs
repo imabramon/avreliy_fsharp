@@ -33,9 +33,12 @@ type SkinContext =
       textToQuote: string
       authorId: int64 }
 
+
+let DEFAULT_AVATAR_PATH = "./assets/undefined.png"
+
 let defaultSkinContext =
     { authorName = "Неизвестен"
-      avatarPath = "./assets/undefined.png"
+      avatarPath = DEFAULT_AVATAR_PATH
       textToQuote = "Lorem ipsum и т.д"
       authorId = 0 }
 
