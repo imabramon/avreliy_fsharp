@@ -12,12 +12,11 @@ open Result
 open Utils.Common
 open Errors
 open Localization
+open Maybe
 
 type Skin =
     { background: string
       draw: AbstactDrawJob array }
-
-type Rect = { size: float32 pair; origin: Origin }
 
 type AuthorInfo = { name: string; offset: float32 }
 
@@ -28,7 +27,8 @@ type SimpleSkinInfoV2 =
       color: Color }
 
 type SkinContext =
-    { authorName: string
+    { date: DateTime
+      authorName: string
       avatarPath: string
       textToQuote: string
       authorId: int64 }
@@ -37,7 +37,8 @@ type SkinContext =
 let DEFAULT_AVATAR_PATH = "./assets/undefined.png"
 
 let defaultSkinContext =
-    { authorName = "Неизвестен"
+    { date = new DateTime 0
+      authorName = "Неизвестен"
       avatarPath = DEFAULT_AVATAR_PATH
       textToQuote = "Lorem ipsum и т.д"
       authorId = 0 }
@@ -70,22 +71,6 @@ let fontPath =
 let MIN_FONT_SIZE = 2f
 let MAX_FONT_SIZE = 32f
 
-let getOrigin quoteRect offsetX =
-    let offsetY = 20f
-    let _, quoteHeight = quoteRect.size
-    let quote = quoteRect.origin.origin
-
-    { origin = PointF(quote.X + offsetX, quote.Y + quoteHeight / 2f + offsetY)
-      position = Raw }
-
-let addAuthorDraw author rect style draws =
-    match author with
-    | None -> draws
-    | Some author ->
-        let origin = getOrigin rect author.offset
-        let authorDraw = getTextBlueprint MAX_FONT_SIZE style author.name
-        append draws (authorDraw.draw origin)
-
 let simpleSkin skinInfo context =
     result {
         let color = skinInfo.color
@@ -108,13 +93,17 @@ let simpleSkin skinInfo context =
         let quoteDraw =
             getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
 
-        let resolvedRect = { rect with size = quoteDraw.bounds }
+        let _, qH = quoteDraw.bounds
+        let mW, _ = rect.size
+
+        let resolvedRect = { rect with size = mW, qH }
 
         let baseDraws = [| quoteDraw.draw quoteOrigin |]
+        let captions = [ skinInfo.author |> Option.map (fun a -> a.name) |> withDefault "" ]
 
         return
             { background = backgroundPath
-              draw = addAuthorDraw skinInfo.author resolvedRect style baseDraws }
+              draw = addCaptions baseDraws resolvedRect MAX_FONT_SIZE style 20f captions }
     }
 
 let selfSkin (context: SkinContext) =
@@ -148,7 +137,10 @@ let selfSkin (context: SkinContext) =
         let quoteDraw =
             getTextInRectBlueprint quoteRect quoteSizeRange style context.textToQuote
 
-        let resolvedRect = { rect with size = quoteDraw.bounds }
+        let _, qH = quoteDraw.bounds
+        let mW, _ = rect.size
+
+        let resolvedRect = { rect with size = mW, qH }
 
         let! avatar =
             getImage context.avatarPath
@@ -163,16 +155,9 @@ let selfSkin (context: SkinContext) =
 
         let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
 
-        let authorRect = measureText font context.authorName
-
-        let authorOffset = 334f - authorRect.Width
-
-        let authorInfo =
-            Some
-                { name = context.authorName
-                  offset = authorOffset }
+        let captions = [ context.authorName ]
 
         return
             { background = backgroundPath
-              draw = addAuthorDraw authorInfo resolvedRect style baseDraws }
+              draw = addCaptions baseDraws resolvedRect MAX_FONT_SIZE style 20f captions }
     }

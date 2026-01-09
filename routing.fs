@@ -71,6 +71,8 @@ let resolveAuthorId (message: TMessage) =
     | Some user -> user.Id
     | None -> 0
 
+let resolveMessageDate (message: TMessage) = message.Date
+
 let resolveUpdateByMessage
     repository
     (original: UpdateContext)
@@ -101,6 +103,7 @@ let resolveUpdateByMessage
             | SingleChat ->
                 let context =
                     { defaultSkinContext with
+                        date = resolveMessageDate message
                         authorId = resolveAuthorId message
                         authorName = resolveAuthor message
                         textToQuote = text }
@@ -131,6 +134,7 @@ let resolveUpdateByMessage
 
                 let context =
                     { defaultSkinContext with
+                        date = resolveMessageDate replyMessage
                         authorId = resolveAuthorId replyMessage
                         authorName = resolveAuthor replyMessage
                         textToQuote = replyText }

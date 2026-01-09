@@ -145,3 +145,28 @@ let getFontFamily (fontPath: string) =
         Ok fontFamily
     with e ->
         logError e.Message
+
+let getRectOrigin (rect: Rect) =
+    pointOf rect.origin rect.size
+
+let addCaptions draws (captionsForRect: Rect) size style (gap: float32) (captions: string list) =
+    let x0, y0 = getRectOrigin captionsForRect
+    let w, h = captionsForRect.size
+    let x1, y1 = x0, y0 + h + gap 
+
+    let rec addCaption acc x y captions =
+        match captions with
+        | caption :: rest ->
+            let captionBlueprint = getTextBlueprint size style caption
+            let capW, capH = captionBlueprint.bounds
+            let offsetX = w - capW
+            let captionOrigin = {
+                position = Raw
+                origin = PointF(x + offsetX, y)
+            }
+            let acc = append acc (captionBlueprint.draw captionOrigin)
+            let y = y + capH + gap
+            addCaption acc x y rest
+        | _ -> acc
+
+    addCaption draws x1 y1 captions 
