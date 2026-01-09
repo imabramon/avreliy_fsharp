@@ -129,6 +129,7 @@ let selfSkin (context: SkinContext) =
 
         let! fontFamily = getFontFamily fontPath
         let fontStyle = FontStyle()
+        let font = Font(fontFamily, MAX_FONT_SIZE)
 
         let options =
             { border = Some { width = 5f; color = Color.Black }
@@ -162,7 +163,9 @@ let selfSkin (context: SkinContext) =
 
         let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
 
-        let authorOffset = 176f
+        let authorRect = measureText font context.authorName
+
+        let authorOffset = 334f - authorRect.Width
 
         let authorInfo =
             Some
