@@ -155,7 +155,7 @@ let selfSkin (context: SkinContext) =
 
         let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
 
-        let captions = [ context.authorName ]
+        let captions = [ context.authorName; context.date.ToLongDateString() ]
 
         return
             { background = backgroundPath
