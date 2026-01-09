@@ -71,6 +71,8 @@ let resolveAuthorId (message: TMessage) =
     | Some user -> user.Id
     | None -> 0
 
+let resolveMessageDate (message: TMessage) = message.Date
+
 let resolveUpdateByMessage
     repository
     (original: UpdateContext)
@@ -101,6 +103,7 @@ let resolveUpdateByMessage
             | SingleChat ->
                 let context =
                     { defaultSkinContext with
+                        date = resolveMessageDate message
                         authorId = resolveAuthorId message
                         authorName = resolveAuthor message
                         textToQuote = text }
@@ -131,6 +134,7 @@ let resolveUpdateByMessage
 
                 let context =
                     { defaultSkinContext with
+                        date = resolveMessageDate replyMessage
                         authorId = resolveAuthorId replyMessage
                         authorName = resolveAuthor replyMessage
                         textToQuote = replyText }
@@ -168,7 +172,7 @@ let proccessUpdate messageToReply repository context : Result<unit, ErrorExterna
 
         match update with
         | TextUpdate update ->
-            proccessTextUpdate messageToReply update context
+            do proccessTextUpdate messageToReply update context
             return ()
         | CommandUpdate command -> return! proccessCommand context command
         | QueryUpdate query -> return! proccessQuery repository context query
@@ -212,6 +216,7 @@ let getProccessUpdate messageToReply botContext update () =
     result {
         do! validateUpdate botContext.validation update
         do! proccessUpdate messageToReply botContext.repository update
+        return ()
     }
 
 let update botContext update =
@@ -221,19 +226,3 @@ let update botContext update =
 
     proccessUpdate
     |> useFeedback hasMessageToReply (getFeedbackSendler update) printError
-
-
-let update2 botContext update =
-    let messageToReply = getMessageToReply update
-
-    match
-        result {
-            do! validateUpdate botContext.validation update
-            do! proccessUpdate messageToReply botContext.repository update
-        }
-    with
-    | Ok _ -> ()
-    | Error e ->
-        match e, messageToReply with
-        | PublicError e, Some messageToReply -> giveFeedback update messageToReply e.message
-        | _ -> printfn $"Error: {getMessage e}"

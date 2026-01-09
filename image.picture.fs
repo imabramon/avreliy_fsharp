@@ -15,7 +15,7 @@ let drawImage (image: Image) =
         let x, y = pointOf origin size
         ctx.DrawImage(image, Point(int x, int y), 1f) |> ignore
 
-    { size = size; draw = draw }
+    { bounds = size; draw = draw }
 
 let resizeImage (width: float32) (height: float32) (image: Image) =
     let resizeOptions = ResizeOptions()

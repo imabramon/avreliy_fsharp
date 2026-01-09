@@ -10,6 +10,7 @@ open SixLabors.ImageSharp.PixelFormats
 open SixLabors.ImageSharp.Drawing.Processing
 open SixLabors.ImageSharp.Processing
 
+open Utils.Common
 open Utils.String
 open Utils.Polymer
 open Errors
@@ -26,8 +27,8 @@ type Ctx = IImageProcessingContext
 type AbstactDrawJob = Ctx -> unit
 type DrawJob = Origin -> AbstactDrawJob
 
-type Draw =
-    { size: float32 * float32
+type Blueprint =
+    { bounds: float32 * float32
       draw: DrawJob }
 
 let getImage (imagePath: string) =
@@ -64,3 +65,5 @@ let generateImage (image: Image) (outputPath: string) (jobs: AbstactDrawJob arra
 let centredIn x y =
     { origin = PointF(x, y)
       position = Centred }
+
+type Rect = { size: float32 pair; origin: Origin }

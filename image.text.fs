@@ -14,7 +14,11 @@ open Errors
 
 type Border = { width: float32; color: Color }
 
-type TextStyleOptions = { border: Border option }
+type Shadow = { offset: float32 pair; color: Color }
+
+type TextStyleOptions =
+    { border: Border option
+      shadow: Shadow option }
 
 type TextStyle =
     { fontFamily: FontFamily
@@ -84,34 +88,39 @@ let borderOf textStyle =
     | None -> None
     | Some options -> options.border
 
-let drawTextBorder (ctx: IImageProcessingContext) (options: RichTextOptions) x y (text: string) style =
+let shadowOf textStyle =
+    match textStyle.options with
+    | None -> None
+    | Some options -> options.shadow
+
+let drawText (ctx: IImageProcessingContext) (font: Font) (color: Color) (point: PointF) (text: string) =
+    ctx.DrawText(text, font, Brushes.Solid color, point) |> ignore
+
+let drawTextShadow (ctx: IImageProcessingContext) (font: Font) (point: PointF) (shadow: Shadow option) (text: string) =
     maybe {
-        let! border = borderOf style
-        let color = border.color
-        let drawing = new DrawingOptions()
-
-        ctx.DrawText(drawing, options, text, Brushes.Solid(color), Pens.Solid(color, border.width))
-        |> ignore
-
+        let! shadow = shadow
+        let x, y = shadow.offset
+        let point = PointF(point.X + x, point.Y + y)
+        ctx.DrawText(text, font, Brushes.Solid shadow.color, point) |> ignore
         return ()
     }
     |> ignore
 
-let drawText (size: float32) (style: TextStyle) text =
-    let font = Font(style.fontFamily, size, style.style)
+
+let getTextBlueprint (fontSize: float32) (style: TextStyle) text =
+    let font = Font(style.fontFamily, fontSize, style.style)
     let size = measureTextSize font text
-    let options = RichTextOptions(font)
     let color = style.color |> withDefault Color.Black
 
     let draw (origin: Origin) (ctx: IImageProcessingContext) =
         let x, y = pointOf origin size
-        options.Origin <- PointF(x, y)
-        do drawTextBorder ctx options x y text style
-        ctx.DrawText(options, text, color) |> ignore
+        let point = PointF(x, y)
+        do drawTextShadow ctx font point (shadowOf style) text
+        do drawText ctx font color point text
 
-    { size = size; draw = draw }
+    { bounds = size; draw = draw }
 
-let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextStyle) text =
+let getTextInRectBlueprint (rect: float32 pair) (sizeRange: float32 pair) (style: TextStyle) text =
     let w, h = rect
     let min, max = sizeRange
     let fontSize = findOptimalFontSize style.fontFamily style.style text w h min max
@@ -122,12 +131,11 @@ let drawTextInRect (rect: float32 pair) (sizeRange: float32 pair) (style: TextSt
 
     let draw origin (ctx: Ctx) =
         let x, y = pointOf origin size
-        let options = RichTextOptions font
-        options.Origin <- PointF(x, y)
-        do drawTextBorder ctx options x y wrappedText style
-        ctx.DrawText(options, wrappedText, color) |> ignore
+        let point = PointF(x, y)
+        do drawTextShadow ctx font point (shadowOf style) wrappedText
+        do drawText ctx font color point wrappedText
 
-    { size = size; draw = draw }
+    { bounds = size; draw = draw }
 
 let getFontFamily (fontPath: string) =
     let fontCollection = FontCollection()
@@ -137,3 +145,28 @@ let getFontFamily (fontPath: string) =
         Ok fontFamily
     with e ->
         logError e.Message
+
+let getRectOrigin (rect: Rect) =
+    pointOf rect.origin rect.size
+
+let addCaptions draws (captionsForRect: Rect) size style (gap: float32) (captions: string list) =
+    let x0, y0 = getRectOrigin captionsForRect
+    let w, h = captionsForRect.size
+    let x1, y1 = x0, y0 + h + gap 
+
+    let rec addCaption acc x y captions =
+        match captions with
+        | caption :: rest ->
+            let captionBlueprint = getTextBlueprint size style caption
+            let capW, capH = captionBlueprint.bounds
+            let offsetX = w - capW
+            let captionOrigin = {
+                position = Raw
+                origin = PointF(x + offsetX, y)
+            }
+            let acc = append acc (captionBlueprint.draw captionOrigin)
+            let y = y + capH + gap
+            addCaption acc x y rest
+        | _ -> acc
+
+    addCaption draws x1 y1 captions 
