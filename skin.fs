@@ -9,7 +9,7 @@ open Image.Common
 open Image.Text
 open Image.Picture
 open Result
-open Utils.Common
+open Utils.IO
 open Errors
 open Localization
 open Maybe
@@ -155,7 +155,7 @@ let selfSkin (context: SkinContext) =
 
         let baseDraws = [| quoteDraw.draw quoteOrigin; avatarDraw.draw avatarOrigin |]
 
-        let captions = [ context.authorName; context.date.ToLongDateString() ]
+        let captions = [ context.authorName; getRussianLongDate context.date ]
 
         return
             { background = backgroundPath
